@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import {onMounted, onUnmounted, ref, watch} from 'vue';
 import Artplayer from 'artplayer';
 import SubtitlesOctopus from '@/libs/JavascriptSubtitlesOctopus/subtitles-octopus.js';
-import { useFontStore } from '@/stores/font';
-import { Attachment } from '@runikaros/api-client';
-import { apiClient } from '@/utils/api-client';
-import type { Setting } from 'artplayer/types/setting';
-import { subtitleNameChineseMap } from '@/modules/common/constants';
+import {useFontStore} from '@/stores/font';
+import {Attachment} from '@runikaros/api-client';
+import {apiClient} from '@/utils/api-client';
+import type {Setting} from 'artplayer/types/setting';
+import {subtitleNameChineseMap} from '@/modules/common/constants';
 
 const beseUrl = import.meta.env.BASE_URL;
 const subtitlesOctopusWorkJsPath =
@@ -16,10 +16,10 @@ const fontStore = useFontStore();
 
 const props = withDefaults(
 	defineProps<{
-		attachment: Attachment;
+		attachmentId: number;
 	}>(),
 	{
-		attachment: undefined,
+		attachmentId: undefined,
 	}
 );
 
@@ -27,6 +27,21 @@ const emit = defineEmits<{
 	// eslint-disable-next-line no-unused-vars
 	(event: 'getInstance', instance: Artplayer): void;
 }>();
+
+watch(props, (newVal) => {
+	if (newVal.attachmentId) {
+		fetchAttachment();
+	}
+});
+
+const attachment = ref<Attachment>();
+const fetchAttachment = async () => {
+	if (!props.attachmentId) return;
+	const { data } = await apiClient.attachment.getAttachmentById({
+		id: props.attachmentId,
+	});
+	attachment.value = data;
+};
 
 const fonts = ref<string[]>([]);
 const initFonts = async () => {
@@ -50,7 +65,7 @@ const getSubtitleSimpleNameByAttachmentName = (name: string): string => {
 
 const getSubtitleChineseSimpleNameBySimpleName = (name: string): string => {
 	const cnName = subtitleNameChineseMap.get(name) as string;
-	return (cnName != null && cnName != undefined && cnName != '') ? cnName : name;
+	return cnName != null && cnName != undefined && cnName != '' ? cnName : name;
 };
 
 const artSubtitles = ref<ArtSubtitle[]>([]);
@@ -58,7 +73,7 @@ const getVideoSubtitles = async () => {
 	artSubtitles.value = [];
 	const { data } =
 		await apiClient.attachmentRelation.findAttachmentVideoSubtitles({
-			attachmentId: props.attachment.id as number,
+			attachmentId: props.attachmentId as number,
 		});
 	// console.log('load video subtitles', data);
 	for (let index = 0; index < data!.length; index++) {
@@ -66,7 +81,8 @@ const getVideoSubtitles = async () => {
 			data![index].name as string
 		);
 		var artSubtitle: ArtSubtitle = {
-			default: simpleName === 'SC' || simpleName === 'sc' || simpleName == 'JPSC',
+			default:
+				simpleName === 'SC' || simpleName === 'sc' || simpleName == 'JPSC',
 			html: getSubtitleChineseSimpleNameBySimpleName(simpleName),
 			url: data![index].url as string,
 		};
@@ -130,10 +146,10 @@ const artplayerSubtitleSetting: Setting = {
 
 const initArtplayer = async () => {
 	console.debug('start init artplyer....');
-	console.debug('att url', props.attachment.url);
+	console.debug('att url', attachment.value?.url);
 	art.value = new Artplayer({
 		container: artRef.value,
-		url: props.attachment.url as string,
+		url: attachment.value?.url as string,
 		volume: 0.5,
 		isLive: false,
 		muted: false,
@@ -201,8 +217,9 @@ const initArtplayer = async () => {
 };
 
 onMounted(async () => {
-	console.debug('attachment', props.attachment);
-	if (props.attachment) {
+	console.debug('attachmentId', props.attachmentId);
+	if (props.attachmentId) {
+		await fetchAttachment();
 		await getVideoSubtitles();
 		await initFonts();
 		await initArtplayer();

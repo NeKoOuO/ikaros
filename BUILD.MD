@@ -39,10 +39,11 @@ Mac或者Linux
 ./gradlew clean build -x test
 ```
 
-本地运行，复制`config/example/resource/application-local.yaml`到`src/main/resource/application-local.yaml`
+本地运行，复制并更名`config/server/resource/application-local.yaml.example`到`src/main/resource/application-local.yaml`
 , 可以根据需要酌情修改，
 
-我建议是本地跑个 [docker for windows](https://docs.docker.com/desktop/install/windows-install/)，装好mariadb方便开发
+我建议是本地跑个 [docker for windows](https://docs.docker.com/desktop/install/windows-install/)
+，装好mariadb方便开发，但本地开发用H2也行。
 
 IDEA的checkstyle插件配置，安装好插件`CheckStyle-IDEA`，进行配置
 
@@ -77,7 +78,10 @@ commit之前，用checkstyle检查下代码，确认没有问题后再commit。
 最后OK保存
 
 ## 本地开发
-在`IkarosApplication`的运行配置里，将`Active profiles` 配置成：`dev,win,debug`
+
+在`IkarosApplication`的运行配置里，将`Active profiles` 配置成：`dev,win-dev,local`
+
+这里的`local`请先确保您已经进行了上面的`application-local.yaml.example`实例文件复制移动重命名
 
 ### Console编译
 需要先运行任务进行Console的前端文件编译：
@@ -116,14 +120,14 @@ java -jar ./ikaros-server.jar
 在打包文件所在目录，`Windwos` 运行，
 需要加上额外参数`--spring.profiles.active=win`
 ```shell
-java -jar ikaros-server.jar --spring.profiles.active=win 
+java -jar ikaros-server.jar --spring.profiles.active=win
 ```
 
 # 提交PR后
 
 更新本地主分支
 ```
-git checkout master | git pull upstream master | git push origin master | git remote prune origin
+git checkout main | git pull upstream main | git push origin main | git remote prune origin
 ```
 
 查看本地分支，并删除工作分支
@@ -140,8 +144,8 @@ git remote add upstream https://github.com/ikaros-dev/ikaros.git
 ```
 
 ```text
-git checkout master
-git pull upstream master
+git checkout main
+git pull upstream main
 ```
 
 # 更多

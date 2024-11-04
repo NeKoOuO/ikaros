@@ -52,6 +52,7 @@ export function getBrowserLanguage(): string {
 	const language = messages[browserLanguage]
 		? browserLanguage
 		: browserLanguage.split('-')[0];
+	// console.debug('browser language', language)
 	return language in messages ? language : 'zh-CN';
 }
 

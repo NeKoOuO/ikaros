@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // @ts-ignore
-import VueFilePond, { setOptions } from 'vue-filepond';
+import VueFilePond, {setOptions} from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 
 // Plugins
@@ -11,11 +11,13 @@ import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 import FilePondPluginFileRename from 'filepond-plugin-file-rename';
 import Utf8 from 'crypto-js/enc-utf8';
 import Base64 from 'crypto-js/enc-base64';
-import { computed, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import {computed, ref} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {useUserStore} from '@/stores/user';
 
 const filePondRef = ref(null);
 const { t } = useI18n();
+const userStore = useUserStore();
 
 // Create component and register plugins
 const filePond = VueFilePond(
@@ -80,17 +82,20 @@ const server = computed({
 			process: {
 				url: './api/v1alpha1/attachment/fragment/unique',
 				withCredentials: true,
+				headers: { Authorization: 'Bearer ' + userStore.jwtToken },
 			},
 			patch: {
 				url: './api/v1alpha1/attachment/fragment/patch/',
 				withCredentials: true,
 				headers: {
 					'PARENT-ID': reqHeaderParendId.value,
+					Authorization: 'Bearer ' + userStore.jwtToken,
 				},
 			},
 			revert: {
 				url: './api/v1alpha1/attachment/fragment/revert',
 				withCredentials: true,
+				headers: { Authorization: 'Bearer ' + userStore.jwtToken },
 			},
 		};
 	},
@@ -128,7 +133,7 @@ defineExpose({
 		:allowImagePreview="true"
 		:allowRevert="false"
 		:files="fileList"
-		:label-idle="t('components.upload.file-pond-upload.mainLabel')"
+		:label-idle="t('component.upload.file-pond-upload.mainLabel')"
 		:maxFiles="100"
 		:maxParallelUploads="5"
 		:name="props.name"
@@ -136,21 +141,21 @@ defineExpose({
 		:chunkSize="props.chunkSize"
 		:chunkForce="props.enableChunkForce"
 		fileValidateTypeLabelExpectedTypes="请选择 {lastType} 格式的文件"
-		:labelFileProcessing="t('components.upload.file-pond-upload.uploadding')"
+		:labelFileProcessing="t('component.upload.file-pond-upload.uploadding')"
 		:labelFileProcessingAborted="
-			t('components.upload.file-pond-upload.cancelUpload')
+			t('component.upload.file-pond-upload.cancelUpload')
 		"
 		:labelFileProcessingComplete="
-			t('components.upload.file-pond-upload.uploadFinish')
+			t('component.upload.file-pond-upload.uploadFinish')
 		"
 		:labelFileProcessingError="
-			t('components.upload.file-pond-upload.uploadException')
+			t('component.upload.file-pond-upload.uploadException')
 		"
 		:labelFileTypeNotAllowed="
-			t('components.upload.file-pond-upload.notSupportFileFormat')
+			t('component.upload.file-pond-upload.notSupportFileFormat')
 		"
-		:labelTapToCancel="t('components.upload.file-pond-upload.clickCancel')"
-		:labelTapToRetry="t('components.upload.file-pond-upload.clickRetry')"
+		:labelTapToCancel="t('component.upload.file-pond-upload.clickCancel')"
+		:labelTapToRetry="t('component.upload.file-pond-upload.clickRetry')"
 		@init="handleFilePondInit"
 	>
 	</file-pond>

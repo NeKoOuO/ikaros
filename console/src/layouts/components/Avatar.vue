@@ -2,7 +2,6 @@
 <script setup lang="ts">
 import { useLayoutStore } from '@/stores/layout';
 import { useUserStore } from '@/stores/user';
-import axios from 'axios';
 import { AxiosError } from 'axios';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
@@ -55,12 +54,14 @@ const confirmLogout = async () => {
 
 const lougout = async () => {
 	try {
-		const url = `${import.meta.env.VITE_API_URL}/logout`;
-		await axios.post(url, null, {
-			withCredentials: true,
-		});
+		// const url = `${import.meta.env.VITE_API_URL}/logout`;
+		// await axios.post(url, null, {
+		// 	withCredentials: true,
+		// });
 
-		await userStore.fetchCurrentUser();
+		// await userStore.fetchCurrentUser();
+
+		userStore.jwtTokenLogout();
 
 		// Reload page
 		window.location.reload();
@@ -69,18 +70,18 @@ const lougout = async () => {
 
 		if (e instanceof AxiosError) {
 			if (/Network Error/.test(e.message)) {
-				ElMessage.error(t('core.common.exception.network_error'));
+				ElMessage.error(t('common.exception.network_error'));
 				return;
 			}
 
 			if (e.response?.status === 403) {
-				ElMessage.warning(t('core.login.operations.submit.toast_csrf'));
+				ElMessage.warning(t('login.operations.submit.toast_csrf'));
 				return;
 			}
 
-			ElMessage.error(t('core.login.operations.submit.toast_failed'));
+			ElMessage.error(t('login.operations.submit.toast_failed'));
 		} else {
-			ElMessage.error(t('core.common.exception.unknown_error_with_title'));
+			ElMessage.error(t('common.exception.unknown_error_with_title'));
 		}
 	}
 };

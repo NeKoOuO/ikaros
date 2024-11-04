@@ -12,10 +12,6 @@
  * Do not edit the class manually.
  */
 
-// May contain unused imports in some cases
-// @ts-ignore
-import { EpisodeResource } from "./episode-resource";
-
 /**
  *
  * @export
@@ -54,12 +50,6 @@ export interface Episode {
   group?: EpisodeGroupEnum;
   /**
    *
-   * @type {Array<EpisodeResource>}
-   * @memberof Episode
-   */
-  resources?: Array<EpisodeResource>;
-  /**
-   *
    * @type {number}
    * @memberof Episode
    */
@@ -87,6 +77,9 @@ export const EpisodeGroupEnum = {
   SmallTheater: "SMALL_THEATER",
   Live: "LIVE",
   CommercialMessage: "COMMERCIAL_MESSAGE",
+  OriginalSoundTrack: "ORIGINAL_SOUND_TRACK",
+  OriginalVideoAnimation: "ORIGINAL_VIDEO_ANIMATION",
+  OriginalAnimationDisc: "ORIGINAL_ANIMATION_DISC",
   MusicDist1: "MUSIC_DIST1",
   MusicDist2: "MUSIC_DIST2",
   MusicDist3: "MUSIC_DIST3",

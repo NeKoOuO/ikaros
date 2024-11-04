@@ -1,61 +1,77 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
-import { Episode, Subject, SubjectTypeEnum } from '@runikaros/api-client';
+import {reactive, ref} from 'vue';
+import {Episode, Subject, SubjectTypeEnum} from '@runikaros/api-client';
 import EpisodePostDialog from './EpisodePostDialog.vue';
-import { Picture } from '@element-plus/icons-vue';
-import { formatDate } from '@/utils/date';
-import { apiClient } from '@/utils/api-client';
+import {Picture} from '@element-plus/icons-vue';
+import {formatDate} from '@/utils/date';
+import {apiClient} from '@/utils/api-client';
 import EpisodeDetailsDialog from './EpisodeDetailsDialog.vue';
-import { useRouter } from 'vue-router';
+import CropperjsDialog from '@/components/image/CropperjsDialog.vue';
+import {useRouter} from 'vue-router';
 import {
-	ElMessage,
-	FormInstance,
-	FormRules,
-	ElRow,
-	ElCol,
-	ElForm,
-	ElFormItem,
-	ElSwitch,
-	ElDatePicker,
-	ElInput,
-	ElButton,
-	ElRadioGroup,
-	ElRadio,
-	ElTable,
-	ElTableColumn,
-	ElImage,
+  ElButton,
+  ElCol,
+  ElDatePicker,
+  ElForm,
+  ElFormItem,
+  ElImage,
+  ElInput,
+  ElMessage,
+  ElRadio,
+  ElRadioGroup,
+  ElRow,
+  ElSwitch,
+  ElTable,
+  ElTableColumn,
+  FormInstance,
+  FormRules,
 } from 'element-plus';
-import {
-	episodeGroupLabelMap,
-	subjectTypes,
-	subjectTypeAliasMap,
-} from '@/modules/common/constants';
+import {episodeGroupLabelMap, subjectTypeAliasMap, subjectTypes,} from '@/modules/common/constants';
 import AttachmentSelectDialog from '../attachment/AttachmentSelectDialog.vue';
-import { base64Encode } from '@/utils/string-util';
+import {base64Encode} from '@/utils/string-util';
+import {useI18n} from 'vue-i18n';
 
 const router = useRouter();
+const { t } = useI18n();
 
 const subject = ref<Subject>({
 	name: '',
 	type: SubjectTypeEnum.Anime,
 	nsfw: false,
 	name_cn: '',
-	episodes: [],
 });
+const episodes = ref<Episode[]>([]);
 
 const subjectRuleFormRules = reactive<FormRules>({
 	name: [
-		{ required: true, message: '请输入条目原始名称', trigger: 'blur' },
-		{ min: 1, max: 100, message: '长度应该在 1 到 100 之间', trigger: 'blur' },
+		{
+			required: true,
+			message: t('module.subject.post.message.form-rule.name.required'),
+			trigger: 'blur',
+		},
+		{
+			min: 1,
+			max: 100,
+			message: t('module.subject.post.message.form-rule.name.length'),
+			trigger: 'blur',
+		},
 	],
 	summary: [
-		{ required: true, message: '请输入条目介绍', trigger: 'blur' },
-		{ min: 5, message: '长度应该大于5', trigger: 'blur' },
+		{
+			required: true,
+			message: t('module.subject.post.message.form-rule.summary.required'),
+			trigger: 'blur',
+		},
+		{
+			min: 5,
+			message: t('module.subject.post.message.form-rule.summary.length'),
+			trigger: 'blur',
+		},
 	],
 	type: [
 		{
 			required: true,
-			message: '请选择一个条目类型',
+			message: t('module.subject.post.message.form-rule.type.required'),
 			trigger: 'change',
 		},
 	],
@@ -63,36 +79,40 @@ const subjectRuleFormRules = reactive<FormRules>({
 		{
 			type: 'date',
 			required: true,
-			message: '请选择一个时间',
+			message: t('module.subject.post.message.form-rule.air_time.type'),
 			trigger: 'change',
 		},
 	],
 });
 
+const submitBtnLoading = ref(false);
 const subjectElFormRef = ref<FormInstance>();
 const submitForm = async (formEl: FormInstance | undefined) => {
 	if (!formEl) return;
 	await formEl.validate(async (valid, fields) => {
 		if (valid) {
-			await apiClient.subject
-				.createSubject({
-					subject: subject.value,
-				})
-				.then(() => {
-					router.push(
-						'/subjects?name=' +
-							base64Encode(encodeURI(subject.value.name)) +
-							'&nameCn=' +
-							base64Encode(encodeURI(subject.value.name_cn as string)) +
-							'&nsfw=' +
-							subject.value.nsfw +
-							'&type=' +
-							subject.value.type
-					);
-				});
+			submitBtnLoading.value = true;
+			const { data } = await apiClient.subject.createSubject({
+				subject: subject.value,
+			});
+			await episodes.value.forEach(async (e) => {
+				e.subject_id = data.id as number;
+				await apiClient.episode.postEpisode({ episode: e });
+			});
+			submitBtnLoading.value = false;
+			router.push(
+				'/subjects?name=' +
+					base64Encode(encodeURI(subject.value.name)) +
+					'&nameCn=' +
+					base64Encode(encodeURI(subject.value.name_cn as string)) +
+					'&nsfw=' +
+					subject.value.nsfw +
+					'&type=' +
+					subject.value.type
+			);
 		} else {
 			console.log('error submit!', fields);
-			ElMessage.error('请检查所填内容是否有必要项缺失。');
+			ElMessage.error(t('module.subject.post.message.form-rule.validate-fail'));
 		}
 	});
 };
@@ -100,7 +120,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
 const episodePostDialogVisible = ref(false);
 const onEpisodePostDialogCloseWithEpsiode = (ep: Episode) => {
 	console.log('receive episode: ', ep);
-	subject.value.episodes?.push(ep);
+	episodes.value?.push(ep);
 };
 
 const airTimeDateFormatter = (row) => {
@@ -108,9 +128,9 @@ const airTimeDateFormatter = (row) => {
 };
 
 const removeCurrentRowEpisode = (ep: Episode) => {
-	const index: number = subject.value.episodes?.indexOf(ep) as number;
+	const index: number = episodes.value?.indexOf(ep) as number;
 	if (index && index < 0) return;
-	subject.value.episodes?.splice(index, 1);
+	episodes.value?.splice(index, 1);
 };
 
 const currentEpisode = ref<Episode>();
@@ -125,6 +145,20 @@ const attachmentSelectDialogVisible = ref(false);
 const onCloseWithAttachment = (attachment) => {
 	subject.value.cover = attachment.url as string;
 	attachmentSelectDialogVisible.value = false;
+};
+
+const cropperjsDialogVisible = ref(false);
+const cropperjsOldUrl = ref('');
+
+const onCroperjsUpdateUrl = (newUrl) => {
+	console.debug('Croperjs newUrl', newUrl);
+	subject.value.cover = newUrl;
+};
+
+const oepnCropperjsDialog = () => {
+	if (!subject.value.cover) return;
+	cropperjsOldUrl.value = subject.value.cover;
+	cropperjsDialogVisible.value = true;
 };
 </script>
 
@@ -150,18 +184,23 @@ const onCloseWithAttachment = (attachment) => {
 							</el-form-item>
 						</el-col>
 						<el-col :span="16">
-							<el-form-item label="发布时间" prop="airTime">
+							<el-form-item
+								:label="t('module.subject.post.label.air_time')"
+								prop="airTime"
+							>
 								<el-date-picker
 									v-model="subject.airTime"
 									type="date"
-									placeholder="请选择一天"
+									:placeholder="
+										t('module.subject.post.date-picker.placeholder')
+									"
 								/>
 							</el-form-item>
 						</el-col>
 					</el-row>
 				</el-form-item>
 
-				<el-form-item label="条目封面">
+				<el-form-item :label="t('module.subject.post.label.cover')">
 					<el-input v-model="subject.cover" clearable>
 						<template #prepend>
 							<el-button
@@ -173,15 +212,15 @@ const onCloseWithAttachment = (attachment) => {
 					</el-input>
 				</el-form-item>
 
-				<el-form-item label="条目名称" prop="name">
+				<el-form-item :label="t('module.subject.post.label.name')" prop="name">
 					<el-input v-model="subject.name" />
 				</el-form-item>
 
-				<el-form-item label="条目中文名">
+				<el-form-item :label="t('module.subject.post.label.name_cn')">
 					<el-input v-model="subject.name_cn" />
 				</el-form-item>
 
-				<el-form-item label="条目类型" prop="type">
+				<el-form-item :label="t('module.subject.post.label.type')" prop="type">
 					<el-radio-group v-model="subject.type">
 						<el-radio
 							v-for="type in subjectTypes"
@@ -195,7 +234,10 @@ const onCloseWithAttachment = (attachment) => {
 					</el-radio-group>
 				</el-form-item>
 
-				<el-form-item label="介绍" prop="summary">
+				<el-form-item
+					:label="t('module.subject.post.label.summary')"
+					prop="summary"
+				>
 					<el-input
 						v-model="subject.summary"
 						:autosize="{ minRows: 2 }"
@@ -206,7 +248,7 @@ const onCloseWithAttachment = (attachment) => {
 					/>
 				</el-form-item>
 
-				<el-form-item label="InfoBox">
+				<el-form-item :label="t('module.subject.post.label.infobox')">
 					<el-input
 						v-model="subject.infobox"
 						:autosize="{ minRows: 2 }"
@@ -214,7 +256,7 @@ const onCloseWithAttachment = (attachment) => {
 						rows="2"
 						show-word-limit
 						type="textarea"
-						placeholder="一行一个 key:value, 例子 中文名: 天降之物"
+						:placeholder="t('module.subject.post.infobox-input.placeholder')"
 					/>
 				</el-form-item>
 
@@ -223,10 +265,10 @@ const onCloseWithAttachment = (attachment) => {
 					@closeWithEpsiode="onEpisodePostDialogCloseWithEpsiode"
 				/>
 
-				<el-form-item label="剧集">
-					<el-table :data="subject.episodes" @row-dblclick="showEpisodeDetails">
+				<el-form-item :label="t('module.subject.post.label.episodes')">
+					<el-table :data="episodes" @row-dblclick="showEpisodeDetails">
 						<el-table-column
-							label="分组"
+							:label="t('module.subject.post.label.episode-table.group')"
 							prop="group"
 							width="110px"
 							show-overflow-tooltip
@@ -235,31 +277,41 @@ const onCloseWithAttachment = (attachment) => {
 								{{ episodeGroupLabelMap.get(scoped.row.group) }}
 							</template>
 						</el-table-column>
-						<el-table-column label="序号" prop="sequence" width="80px" />
-						<el-table-column label="原始名称" prop="name" />
-						<el-table-column label="中文名称" prop="name_cn" />
 						<el-table-column
-							label="发布日期"
+							:label="t('module.subject.post.label.episode-table.sequence')"
+							prop="sequence"
+							width="90px"
+						/>
+						<el-table-column
+							:label="t('module.subject.post.label.episode-table.name')"
+							prop="name"
+						/>
+						<el-table-column
+							:label="t('module.subject.post.label.episode-table.name_cn')"
+							prop="name_cn"
+						/>
+						<el-table-column
+							:label="t('module.subject.post.label.episode-table.air_time')"
 							prop="air_time"
 							:formatter="airTimeDateFormatter"
 						/>
-						<!-- <el-table-column label="描述" prop="description" /> -->
-						<el-table-column align="right">
+						<!-- <el-table-column :label="t('module.subject.post.label.episode-table.description')" prop="description" /> -->
+						<el-table-column align="right" width="350">
 							<template #header>
 								<el-button plain @click="episodePostDialogVisible = true">
-									添加剧集
+									{{ t('module.subject.post.text.button.episode.add') }}
 								</el-button>
 							</template>
 							<template #default="scoped">
 								<el-button plain @click="showEpisodeDetails(scoped.row)">
-									详情
+									{{ t('module.subject.post.text.button.episode.details') }}
 								</el-button>
 								<el-button
 									plain
 									type="danger"
 									@click="removeCurrentRowEpisode(scoped.row)"
 								>
-									删除
+									{{ t('module.subject.post.text.button.episode.remove') }}
 								</el-button>
 							</template>
 						</el-table-column>
@@ -267,29 +319,44 @@ const onCloseWithAttachment = (attachment) => {
 				</el-form-item>
 
 				<el-form-item>
-					<el-button plain @click="submitForm(subjectElFormRef)">
-						创建
+					<el-button plain :loading="submitBtnLoading" @click="submitForm(subjectElFormRef)">
+						{{ t('module.subject.post.text.button.subject.create') }}
 					</el-button>
 				</el-form-item>
 			</el-form>
 		</el-col>
 		<el-col :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
-			<span v-if="subject.cover">
-				<el-image
-					style="width: 100%"
-					:src="subject.cover"
-					:zoom-rate="1.2"
-					:preview-src-list="new Array(subject.cover)"
-					:initial-index="4"
-					fit="cover"
-				/>
-			</span>
+			<el-row>
+				<el-col :span="24">
+					<el-button @click="oepnCropperjsDialog">裁剪</el-button>
+				</el-col>
+			</el-row>
+			<br />
+			<el-row>
+				<el-col :span="24">
+					<span v-if="subject.cover">
+						<el-image
+							style="width: 100%"
+							:src="subject.cover"
+							:zoom-rate="1.2"
+							:preview-src-list="new Array(subject.cover)"
+							:initial-index="4"
+							fit="cover"
+						/>
+					</span>
+				</el-col>
+			</el-row>
 		</el-col>
 	</el-row>
 	<EpisodeDetailsDialog
 		v-model:visible="episodeDetailsDialogVisible"
 		v-model:subjectId="subject.id"
 		v-model:ep="currentEpisode"
+	/>
+	<CropperjsDialog
+		v-model:visible="cropperjsDialogVisible"
+		v-model:url="cropperjsOldUrl"
+		@update-url="onCroperjsUpdateUrl"
 	/>
 </template>
 

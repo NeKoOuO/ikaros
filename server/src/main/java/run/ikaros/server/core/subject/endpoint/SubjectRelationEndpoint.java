@@ -10,8 +10,8 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springdoc.core.fn.builders.apiresponse.Builder;
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
@@ -48,7 +48,9 @@ public class SubjectRelationEndpoint implements CoreEndpoint {
                         .in(ParameterIn.PATH)
                         .description("Subject id")
                         .implementation(Long.class)
-                        .required(true)))
+                        .required(true))
+                    .response(Builder.responseBuilder()
+                        .implementationArray(SubjectRelation.class)))
             .GET("/subject/relation/{subjectId}/{relationType}", this::findBySubjectIdAndType,
                 builder -> builder
                     .tag(tag)
@@ -74,15 +76,15 @@ public class SubjectRelationEndpoint implements CoreEndpoint {
                         .required(true)
                         .description("SubjectRelation")
                         .implementation(SubjectRelation.class)))
-            .DELETE("/subject/relation", this::removeSubjectRelation,
+            .DELETE("/subject/relation/subjectId/{subjectId}", this::removeSubjectRelation,
                 builder -> builder
                     .tag(tag)
                     .operationId("RemoveSubjectRelation")
                     .description("Remove subject relation")
                     .parameter(parameterBuilder()
                         .required(true)
-                        .in(ParameterIn.QUERY)
-                        .name("subject_id")
+                        .in(ParameterIn.PATH)
+                        .name("subjectId")
                         .description("Subject id")
                         .implementation(Long.class))
                     .parameter(parameterBuilder()
@@ -109,10 +111,7 @@ public class SubjectRelationEndpoint implements CoreEndpoint {
             .filter(subjectRelations -> !subjectRelations.isEmpty())
             .flatMap(subjectRelations -> ServerResponse.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(subjectRelations))
-            .switchIfEmpty(ServerResponse.status(HttpStatus.NOT_FOUND)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue("Not found for subject id: " + subjectId));
+                .bodyValue(subjectRelations));
 
     }
 
@@ -142,14 +141,14 @@ public class SubjectRelationEndpoint implements CoreEndpoint {
 
 
     private Mono<ServerResponse> removeSubjectRelation(ServerRequest request) {
-        Optional<String> subjectId = request.queryParam("subject_id");
-        Assert.isTrue(subjectId.isPresent(), "'subject_id' must not be empty");
+        String subjectId = request.pathVariable("subjectId");
+        Assert.hasText(subjectId, "subjectId must not be empty");
         Optional<String> relationType = request.queryParam("relation_type");
         Assert.isTrue(relationType.isPresent(), "'relation_type' must not be empty");
         Optional<String> relationSubjects = request.queryParam("relation_subjects");
         Assert.isTrue(relationSubjects.isPresent(), "'relation_subjects' must not be empty");
         SubjectRelation subjectRelation = SubjectRelation.builder()
-            .subject(Long.valueOf(subjectId.get()))
+            .subject(Long.valueOf(subjectId))
             .relationType(
                 StringUtils.isNumeric(relationType.get())
                     ? SubjectRelationType.codeOf(Integer.valueOf(relationType.get()))

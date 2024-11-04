@@ -374,22 +374,15 @@ export const PluginIkarosRunV1alpha1PluginApiAxiosParamCreator = function (
     },
     /**
      * Update plugin
-     * @param {string} name Name of plugin
      * @param {Plugin} [plugin] Updated Plugin
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     updatePlugin: async (
-      name: string,
       plugin?: Plugin,
       options: AxiosRequestConfig = {}
     ): Promise<RequestArgs> => {
-      // verify required parameter 'name' is not null or undefined
-      assertParamExists("updatePlugin", "name", name);
-      const localVarPath = `/apis/plugin.ikaros.run/v1alpha1/plugin`.replace(
-        `{${"name"}}`,
-        encodeURIComponent(String(name))
-      );
+      const localVarPath = `/apis/plugin.ikaros.run/v1alpha1/plugin`;
       // use dummy base URL string because the URL constructor only accepts absolute URLs.
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -655,20 +648,17 @@ export const PluginIkarosRunV1alpha1PluginApiFp = function (
     },
     /**
      * Update plugin
-     * @param {string} name Name of plugin
      * @param {Plugin} [plugin] Updated Plugin
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     async updatePlugin(
-      name: string,
       plugin?: Plugin,
       options?: AxiosRequestConfig
     ): Promise<
       (axios?: AxiosInstance, basePath?: string) => AxiosPromise<Plugin>
     > {
       const localVarAxiosArgs = await localVarAxiosParamCreator.updatePlugin(
-        name,
         plugin,
         options
       );
@@ -818,11 +808,11 @@ export const PluginIkarosRunV1alpha1PluginApiFactory = function (
      * @throws {RequiredError}
      */
     updatePlugin(
-      requestParameters: PluginIkarosRunV1alpha1PluginApiUpdatePluginRequest,
+      requestParameters: PluginIkarosRunV1alpha1PluginApiUpdatePluginRequest = {},
       options?: AxiosRequestConfig
     ): AxiosPromise<Plugin> {
       return localVarFp
-        .updatePlugin(requestParameters.name, requestParameters.plugin, options)
+        .updatePlugin(requestParameters.plugin, options)
         .then((request) => request(axios, basePath));
     },
     /**
@@ -937,13 +927,6 @@ export interface PluginIkarosRunV1alpha1PluginApiGetPluginsByPagingRequest {
  * @interface PluginIkarosRunV1alpha1PluginApiUpdatePluginRequest
  */
 export interface PluginIkarosRunV1alpha1PluginApiUpdatePluginRequest {
-  /**
-   * Name of plugin
-   * @type {string}
-   * @memberof PluginIkarosRunV1alpha1PluginApiUpdatePlugin
-   */
-  readonly name: string;
-
   /**
    * Updated Plugin
    * @type {Plugin}
@@ -1095,11 +1078,11 @@ export class PluginIkarosRunV1alpha1PluginApi extends BaseAPI {
    * @memberof PluginIkarosRunV1alpha1PluginApi
    */
   public updatePlugin(
-    requestParameters: PluginIkarosRunV1alpha1PluginApiUpdatePluginRequest,
+    requestParameters: PluginIkarosRunV1alpha1PluginApiUpdatePluginRequest = {},
     options?: AxiosRequestConfig
   ) {
     return PluginIkarosRunV1alpha1PluginApiFp(this.configuration)
-      .updatePlugin(requestParameters.name, requestParameters.plugin, options)
+      .updatePlugin(requestParameters.plugin, options)
       .then((request) => request(this.axios, this.basePath));
   }
 

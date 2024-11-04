@@ -1,7 +1,7 @@
 package run.ikaros.server.core.attachment.service.impl;
 
+import static run.ikaros.api.infra.utils.ReactiveBeanUtils.copyProperties;
 import static run.ikaros.api.store.enums.AttachmentReferenceType.EPISODE;
-import static run.ikaros.server.infra.utils.ReactiveBeanUtils.copyProperties;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -14,7 +14,6 @@ import run.ikaros.api.core.attachment.exception.AttachmentNotFoundException;
 import run.ikaros.api.core.attachment.exception.AttachmentRefMatchingException;
 import run.ikaros.api.infra.exception.RegexMatchingException;
 import run.ikaros.api.infra.exception.subject.EpisodeNotFoundException;
-import run.ikaros.api.infra.utils.FileUtils;
 import run.ikaros.api.infra.utils.RegexUtils;
 import run.ikaros.api.store.enums.AttachmentReferenceType;
 import run.ikaros.api.store.enums.EpisodeGroup;
@@ -81,6 +80,14 @@ public class AttachmentReferenceServiceImpl implements AttachmentReferenceServic
     }
 
     @Override
+    public Mono<Void> removeAllByTypeAndReferenceId(AttachmentReferenceType type,
+                                                    Long referenceId) {
+        Assert.notNull(type, "'type' must not null.");
+        Assert.isTrue(referenceId > 0, "'referenceId' must gt 0.");
+        return repository.deleteAllByTypeAndReferenceId(type, referenceId);
+    }
+
+    @Override
     public Mono<Void> removeByTypeAndAttachmentIdAndReferenceId(AttachmentReferenceType type,
                                                                 Long attachmentId,
                                                                 Long referenceId) {
@@ -93,7 +100,15 @@ public class AttachmentReferenceServiceImpl implements AttachmentReferenceServic
 
     @Override
     public Mono<Void> matchingAttachmentsAndSubjectEpisodes(Long subjectId, Long[] attachmentIds) {
-        return matchingAttachmentsAndSubjectEpisodes(subjectId, attachmentIds, false);
+        return matchingAttachmentsAndSubjectEpisodes(subjectId, attachmentIds,
+            EpisodeGroup.MAIN, false);
+    }
+
+    @Override
+    public Mono<Void> matchingAttachmentsAndSubjectEpisodes(Long subjectId, Long[] attachmentIds,
+                                                            EpisodeGroup group) {
+        return matchingAttachmentsAndSubjectEpisodes(subjectId, attachmentIds,
+            group, false);
     }
 
     @Override
@@ -101,19 +116,27 @@ public class AttachmentReferenceServiceImpl implements AttachmentReferenceServic
                                                             boolean notify) {
         Assert.isTrue(subjectId > 0, "'subjectId' must gt 0.");
         Assert.notNull(attachmentIds, "'attachmentIds' must not null.");
+        return matchingAttachmentsAndSubjectEpisodes(subjectId, attachmentIds,
+            EpisodeGroup.MAIN, notify);
+    }
+
+    @Override
+    public Mono<Void> matchingAttachmentsAndSubjectEpisodes(Long subjectId, Long[] attachmentIds,
+                                                            EpisodeGroup group, boolean notify) {
+        Assert.isTrue(subjectId > 0, "'subjectId' must gt 0.");
+        Assert.notNull(attachmentIds, "'attachmentIds' must not null.");
         return Flux.fromArray(attachmentIds)
             .flatMap(attId -> attachmentRepository.findById(attId)
                 .switchIfEmpty(Mono.error(new AttachmentNotFoundException(
                     "Check fail, current attachment not found for id=" + attId))))
-            .filter(entity -> FileUtils.isVideo(entity.getUrl()))
-            .switchIfEmpty(Mono.error(new AttachmentRefMatchingException(
-                "Matching fail, current attachment is not a video.")))
             .flatMap(entity -> getSeqMono(entity.getName())
                 .flatMap(seq -> episodeRepository.findBySubjectIdAndGroupAndSequence(subjectId,
-                        EpisodeGroup.MAIN, seq)
+                        group == null ? EpisodeGroup.MAIN : group, seq)
                     .switchIfEmpty(Mono.error(new AttachmentRefMatchingException(
                         "Matching fail, episode not fond by seq=" + seq
-                            + " and subjectId=" + subjectId))))
+                            + " and subjectId=" + subjectId
+                            + " and ep group=" + group)))
+                    .collectList().map(episodeEntities -> episodeEntities.get(0)))
                 .flatMap(episodeEntity -> repository
                     .existsByTypeAndReferenceId(EPISODE, episodeEntity.getId())
                     .filter(exists -> !exists)
@@ -169,7 +192,7 @@ public class AttachmentReferenceServiceImpl implements AttachmentReferenceServic
                     EpisodeAttachmentUpdateEvent event =
                         new EpisodeAttachmentUpdateEvent(this,
                             entity.getReferenceId(),
-                            entity.getId(), false);
+                            entity.getAttachmentId(), false);
                     applicationEventPublisher.publishEvent(event);
                     log.debug("publish event EpisodeAttachmentUpdateEvent "
                         + "for attachmentReferenceEntity: {}", attachmentReferenceEntity);
@@ -177,10 +200,10 @@ public class AttachmentReferenceServiceImpl implements AttachmentReferenceServic
             .then();
     }
 
-    private static Mono<Integer> getSeqMono(String name) {
-        int seq;
+    private static Mono<Float> getSeqMono(String name) {
+        Float seq;
         try {
-            seq = Integer.parseInt(String.valueOf(RegexUtils.parseEpisodeSeqByFileName(name)));
+            seq = Float.parseFloat(String.valueOf(RegexUtils.parseEpisodeSeqByFileName(name)));
             if (-1 == seq) {
                 throw new RegexMatchingException("Matching fail");
             }

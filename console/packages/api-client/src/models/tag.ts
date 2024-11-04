@@ -59,6 +59,7 @@ export interface Tag {
 export const TagTypeEnum = {
   Subject: "SUBJECT",
   Episode: "EPISODE",
+  Attachment: "ATTACHMENT",
 } as const;
 
 export type TagTypeEnum = (typeof TagTypeEnum)[keyof typeof TagTypeEnum];

@@ -1,18 +1,14 @@
 <script setup lang="ts">
-import { SubjectCollectionTypeEnum } from '@runikaros/api-client';
-import { computed, ref } from 'vue';
-import { subjectCollectTypeAliasMap } from '@/modules/common/constants';
-import { ElMessage } from 'element-plus';
-import { apiClient } from '@/utils/api-client';
-import { useUserStore } from '@/stores/user';
-import { ElDialog, ElRadioGroup, ElRadioButton, ElButton } from 'element-plus';
-
-const userStore = useUserStore();
+import {SubjectCollectionTypeEnum} from '@runikaros/api-client';
+import {computed, ref} from 'vue';
+import {subjectCollectTypeAliasMap} from '@/modules/common/constants';
+import {ElButton, ElDialog, ElMessage, ElRadioButton, ElRadioGroup,} from 'element-plus';
+import {apiClient} from '@/utils/api-client';
 
 const props = withDefaults(
 	defineProps<{
 		visible: boolean;
-		subjectId: number;
+		subjectId: number | string;
 	}>(),
 	{
 		visible: false,
@@ -38,8 +34,7 @@ const dialogVisible = computed({
 const collectType = ref<SubjectCollectionTypeEnum>();
 
 const onSubjectCollectionSubmit = async () => {
-	await apiClient.subjectCollection.collectSubject({
-		userId: userStore.currentUser?.entity?.id as number,
+	await apiClient.collectionSubject.collectSubject({
 		subjectId: props.subjectId as number,
 		type: collectType.value as 'WISH' | 'DOING' | 'DONE' | 'SHELVE' | 'DISCARD',
 	});

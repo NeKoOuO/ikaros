@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { i18n } from '@/locales';
 import { ElMessage, ElInput, ElForm, ElFormItem, ElButton } from 'element-plus';
-import axios from 'axios';
 import { AxiosError } from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
 import { randomUUID } from '@/utils/id';
-import qs from 'qs';
 import { onMounted, ref } from 'vue';
+import LanguageSelect from '@/layouts/components/LanguageSelect.vue';
 // import Dashboard from '@/modules/dashboard/Dashboard.vue';
 
 const { t } = useI18n();
@@ -30,14 +28,14 @@ const rules = ref({
 	username: [
 		{
 			required: true,
-			message: i18n.global.t('core.login.fields.username.rule'),
+			message: t('module.user.login.field.username.rule'),
 			trigger: 'blur',
 		},
 	],
 	password: [
 		{
 			required: true,
-			message: i18n.global.t('core.login.fields.password.rule'),
+			message: t('module.user.login.field.password.rule'),
 			trigger: 'blur',
 		},
 	],
@@ -48,15 +46,17 @@ const userStore = useUserStore();
 
 const handleLogin = async () => {
 	try {
-		const url = `${import.meta.env.VITE_API_URL}/login`;
-		await axios.post(url, qs.stringify(form.value), {
-			withCredentials: true,
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
-		});
+		// const url = `${import.meta.env.VITE_API_URL}/login`;
+		// await axios.post(url, qs.stringify(form.value), {
+		// 	withCredentials: true,
+		// 	headers: {
+		// 		'Content-Type': 'application/x-www-form-urlencoded',
+		// 	},
+		// });
 
-		await userStore.fetchCurrentUser();
+		// await userStore.fetchCurrentUser();
+
+		await userStore.applyJwtToken(form.value.username, form.value.password);
 
 		// Reload page
 		// if (route.query.redirect_uri) {
@@ -64,25 +64,27 @@ const handleLogin = async () => {
 		// } else {
 		// 	router.push(Dashboard);
 		// }
-		window.location.reload();
+		if (!userStore.isAnonymous) {
+			window.location.reload();
+		}
 	} catch (e: unknown) {
 		console.error('Failed to login', e);
 
 		if (e instanceof AxiosError) {
 			if (/Network Error/.test(e.message)) {
-				ElMessage.error(t('core.common.exception.network_error'));
+				ElMessage.error(t('common.exception.network_error'));
 				return;
 			}
 
 			if (e.response?.status === 403) {
-				ElMessage.warning(t('core.login.operations.submit.toast_csrf'));
+				ElMessage.warning(t('module.user.login.operation.submit.toast_csrf'));
 				await handleGenerateToken();
 				return;
 			}
 
-			ElMessage.error(t('core.login.operations.submit.toast_failed'));
+			ElMessage.error(t('module.user.login.operation.submit.toast_failed'));
 		} else {
-			ElMessage.error(t('core.common.exception.unknown_error_with_title'));
+			ElMessage.error(t('common.exception.unknown_error_with_title'));
 		}
 
 		form.value.password = '';
@@ -101,13 +103,13 @@ onMounted(() => {
 	<div class="login-container">
 		<el-form ref="formRef" :model="form" class="login-form" :rules="rules">
 			<div class="title-container">
-				<h3 class="title">{{ i18n.global.t('core.login.title') }}</h3>
+				<h3 class="title">{{ t('module.user.login.title') }}</h3>
 			</div>
 			<el-form-item prop="username">
 				<el-input
 					ref="usernameRef"
 					v-model="form.username"
-					:placeholder="i18n.global.t('core.login.fields.username.placeholder')"
+					:placeholder="t('module.user.login.field.username.placeholder')"
 				>
 				</el-input>
 			</el-form-item>
@@ -115,12 +117,13 @@ onMounted(() => {
 				<el-input
 					v-model="form.password"
 					type="password"
-					:placeholder="i18n.global.t('core.login.fields.password.placeholder')"
+					:placeholder="t('module.user.login.field.password.placeholder')"
 					@keyup.enter="handleLogin"
 				></el-input>
 			</el-form-item>
+			<LanguageSelect />
 			<el-button type="primary" class="login-button" @click="handleLogin">{{
-				i18n.global.t('core.login.button')
+				t('module.user.login.button')
 			}}</el-button>
 		</el-form>
 	</div>
@@ -170,7 +173,7 @@ $cursor: #fff;
 			}
 		}
 		.login-button {
-			width: 100%;
+			width: 80%;
 			box-sizing: border-box;
 		}
 	}

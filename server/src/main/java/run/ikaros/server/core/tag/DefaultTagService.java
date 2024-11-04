@@ -1,6 +1,6 @@
 package run.ikaros.server.core.tag;
 
-import static run.ikaros.server.infra.utils.ReactiveBeanUtils.copyProperties;
+import static run.ikaros.api.infra.utils.ReactiveBeanUtils.copyProperties;
 
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import run.ikaros.api.core.tag.AttachmentTag;
 import run.ikaros.api.core.tag.SubjectTag;
 import run.ikaros.api.core.tag.Tag;
 import run.ikaros.api.infra.exception.NotFoundException;
@@ -26,7 +27,11 @@ public class DefaultTagService implements TagService {
     private final TagRepository tagRepository;
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
 
-    public DefaultTagService(TagRepository tagRepository, R2dbcEntityTemplate r2dbcEntityTemplate) {
+    /**
+     * Construct.
+     */
+    public DefaultTagService(TagRepository tagRepository,
+                             R2dbcEntityTemplate r2dbcEntityTemplate) {
         this.tagRepository = tagRepository;
         this.r2dbcEntityTemplate = r2dbcEntityTemplate;
     }
@@ -71,13 +76,31 @@ public class DefaultTagService implements TagService {
     }
 
     @Override
+    public Flux<AttachmentTag> findAttachmentTags(Long attachmentId) {
+        Assert.isTrue(attachmentId >= 0, "'attachmentId' must >=0.");
+        return findAll(TagType.ATTACHMENT, attachmentId, null, null)
+            .map(tag -> AttachmentTag.builder()
+                .id(tag.getId())
+                .attachmentId(tag.getMasterId())
+                .userId(tag.getUserId())
+                .name(tag.getName())
+                .createTime(tag.getCreateTime())
+                .build());
+    }
+
+    @Override
     public Mono<Tag> create(Tag tag) {
         Assert.isNull(tag.getId(), "'tag id' must is null.");
         Assert.notNull(tag.getType(), "'type' must not null.");
         Assert.isTrue(tag.getMasterId() >= 0, "'masterId' must >=0.");
         Assert.hasText(tag.getName(), "'name' must has text.");
-        return Mono.just(tag)
-            .flatMap(tag1 -> copyProperties(tag1, new TagEntity()))
+        if (Objects.isNull(tag.getUserId())) {
+            tag.setUserId(-1L);
+        }
+        return tagRepository.existsByTypeAndMasterIdAndName(
+                tag.getType(), tag.getMasterId(), tag.getName())
+            .filter(exists -> !exists)
+            .flatMap(exists -> copyProperties(tag, new TagEntity()))
             .flatMap(tagRepository::save)
             .flatMap(tagEntity -> copyProperties(tagEntity, tag));
     }

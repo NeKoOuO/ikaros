@@ -1,19 +1,24 @@
 <script setup lang="ts">
-import { usePluginModuleStore } from '@/stores/plugin';
-import { apiClient } from '@/utils/api-client';
-import { PluginModule } from '@runikaros/shared';
-import { Subject } from '@runikaros/api-client';
-import { ElMessage, FormInstance, FormRules } from 'element-plus';
-import { computed, onMounted, reactive, ref } from 'vue';
+import {usePluginModuleStore} from '@/stores/plugin';
+import {apiClient} from '@/utils/api-client';
+import {PluginModule} from '@runikaros/shared';
+import {Subject} from '@runikaros/api-client';
 import {
-	ElDialog,
-	ElForm,
-	ElFormItem,
-	ElSelect,
-	ElOption,
-	ElInput,
-	ElButton,
+  ElButton,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElMessage,
+  ElOption,
+  ElSelect,
+  FormInstance,
+  FormRules,
 } from 'element-plus';
+import {computed, onMounted, reactive, ref} from 'vue';
+import {useI18n} from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = withDefaults(
 	defineProps<{
@@ -79,23 +84,31 @@ const onConfirm = async (formEl: FormInstance | undefined) => {
 			if (valid) {
 				syncButtonLoading.value = true;
 				console.log('subjectSync', subjectSync.value);
-				const { data } = await apiClient.subjectSyncPlatform
+				await apiClient.subjectSync
 					.syncSubjectAndPlatform({
 						// @ts-ignore
 						platform: subjectSync.value.platform,
 						platformId: subjectSync.value.platformId,
-						// @ts-ignore
-						action: subjectSync.value.action,
 						subjectId: subjectId.value as number,
 					})
 					.finally(() => {
 						syncButtonLoading.value = false;
 					});
+				const { data } = await apiClient.subjectSync.getSubjectSyncsByPlatformAndPlatformId({
+					// @ts-ignore
+					platform: subjectSync.value.platform,
+					// @ts-ignore
+					platformId: subjectSync.value.platformId as number,
+				})
+				if (data.length > 0) {
+					const rsp = await apiClient.subject.searchSubjectById({id: data[0].subjectId as number})
+					emit('closeWithSubjectName', rsp.data);
+				}
 				dialogVisible.value = false;
-				emit('closeWithSubjectName', data);
+				// emit('closeWithSubjectName', data);
 			} else {
 				console.log('error submit!', fields);
-				ElMessage.error('请检查所填内容是否有必要项缺失。');
+				ElMessage.error(t('module.subject.dialog.sync.message.validate-fail'));
 			}
 		});
 	}
@@ -106,16 +119,26 @@ const subjectSyncFormRules = reactive<FormRules>({
 	platform: [
 		{
 			required: true,
-			message: '请选择同步的平台',
+			message: t(
+				'module.subject.dialog.sync.message.form-rule.platform.required'
+			),
 			trigger: 'change',
 		},
 	],
 	platformId: [
-		{ required: true, message: '请输入同步平台的条目ID', trigger: 'blur' },
+		{
+			required: true,
+			message: t(
+				'module.subject.dialog.sync.message.form-rule.platform-id.required'
+			),
+			trigger: 'blur',
+		},
 		{
 			min: 1,
-			max: 10,
-			message: '长度应该在 1 到 10 字符之间',
+			max: 100,
+			message: t(
+				'module.subject.dialog.sync.message.form-rule.platform-id.length'
+			),
 			trigger: 'blur',
 		},
 	],
@@ -132,13 +155,20 @@ onMounted(() => {
 		] as unknown as string;
 		subjectPlatformArr.value.push(subjectPlatform);
 	});
+	if (subjectPlatformArr.value.length == 1) {
+		subjectSync.value.platform = subjectPlatformArr.value[0];
+	}
 });
 </script>
 
 <template>
 	<el-dialog
 		v-model="dialogVisible"
-		:title="props.isMerge ? '条目更新' : '条目拉取'"
+		:title="
+			props.isMerge
+				? t('module.subject.dialog.sync.title.update')
+				: t('module.subject.dialog.sync.title.pull')
+		"
 	>
 		<el-form
 			v-if="subjectPlatformArr.length > 0"
@@ -147,7 +177,10 @@ onMounted(() => {
 			:model="subjectSync"
 			label-width="120px"
 		>
-			<el-form-item label="平台" prop="platform">
+			<el-form-item
+				:label="t('module.subject.dialog.sync.label.platform')"
+				prop="platform"
+			>
 				<el-select v-model="subjectSync.platform">
 					<el-option
 						v-for="platform in subjectPlatformArr"
@@ -157,16 +190,19 @@ onMounted(() => {
 					/>
 				</el-select>
 			</el-form-item>
-			<el-form-item label="平台的条目ID" prop="platformId">
+			<el-form-item
+				:label="t('module.subject.dialog.sync.label.subject-platform-id')"
+				prop="platformId"
+			>
 				<el-input
 					v-model="subjectSync.platformId"
-					placeholder="请输入同步平台的条目ID"
+					:placeholder="t('module.subject.dialog.sync.placeholder.platform-id')"
 				/>
 			</el-form-item>
 		</el-form>
-		<span v-else
-			>暂无可用的同步平台，请开启相关的插件并启动，比如番组计划的插件。</span
-		>
+		<span v-else>
+			{{ t('module.subject.dialog.sync.text.platform-no-available-hint-msg') }}
+		</span>
 		<template #footer>
 			<span>
 				<el-button
@@ -174,7 +210,11 @@ onMounted(() => {
 					:loading="syncButtonLoading"
 					@click="onConfirm(subjectSyncFormRef)"
 				>
-					{{ subjectPlatformArr.length === 0 ? '返回' : '同步' }}
+					{{
+						subjectPlatformArr.length === 0
+							? t('module.subject.dialog.sync.footer.button.cancel')
+							: t('module.subject.dialog.sync.footer.button.confirm')
+					}}
 				</el-button>
 			</span>
 		</template>

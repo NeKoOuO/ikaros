@@ -1,24 +1,26 @@
 <script setup lang="ts">
-import type { Attachment, UpdateUserRequest } from '@runikaros/api-client';
-import { useUserStore } from '@/stores/user';
-import { apiClient } from '@/utils/api-client';
-import { onMounted, ref } from 'vue';
-import { Picture } from '@element-plus/icons-vue';
+import type {Attachment, UpdateUserRequest} from '@runikaros/api-client';
+import {useUserStore} from '@/stores/user';
+import {apiClient} from '@/utils/api-client';
+import {onMounted, ref} from 'vue';
+import {Picture} from '@element-plus/icons-vue';
 import {
-	ElMessage,
-	ElForm,
-	ElFormItem,
-	ElTabs,
-	ElTabPane,
-	ElInput,
-	ElButton,
-	ElRow,
-	ElCol,
-	ElImage,
+  ElButton,
+  ElCol,
+  ElForm,
+  ElFormItem,
+  ElImage,
+  ElInput,
+  ElMessage,
+  ElRow,
+  ElTabPane,
+  ElTabs,
 } from 'element-plus';
 import AttachmentSelectDialog from '../content/attachment/AttachmentSelectDialog.vue';
+import {useI18n} from 'vue-i18n';
 
 const userStore = useUserStore();
+const { t } = useI18n();
 
 const profile = ref<UpdateUserRequest>({
 	username: '',
@@ -33,24 +35,36 @@ const passwordReq = ref({
 	newPassword: '',
 });
 const updateProfile = async () => {
-	await apiClient.user
-		.updateUser({
+	await apiClient.userMe
+		.putProfile({
 			updateUserRequest: profile.value,
 		})
 		.then(() => {
-			ElMessage.success('更新基本信息成功');
+			ElMessage.success(t('module.user.profile.message.update.all'));
 			userStore.fetchCurrentUser();
 		});
 };
+const updateUsername = async () => {
+	await apiClient.userMe
+		.updateUsername({
+			newUsername: profile.value.username,
+		})
+		.then(() => {
+			ElMessage.success(t('module.user.profile.message.update.all'));
+			userStore.fetchCurrentUser();
+			userStore.jwtTokenLogout();
+			window.location.reload();
+		});
+};
+
 const updatePassword = async () => {
-	await apiClient.user
+	await apiClient.userMe
 		.changeUserPassword({
-			username: passwordReq.value.username,
 			oldPassword: passwordReq.value.oldPassword,
 			newPassword: passwordReq.value.newPassword,
 		})
 		.then(() => {
-			ElMessage.success('更新密码成功');
+			ElMessage.success(t('module.user.profile.message.update.password'));
 			userStore.fetchCurrentUser();
 		});
 };
@@ -90,14 +104,14 @@ onMounted(initProfileAndUsername);
 		size="default"
 	>
 		<el-tabs>
-			<el-tab-pane label="基本信息">
+			<el-tab-pane :label="t('module.user.profile.label.basic_info')">
 				<ElRow :gutter="12">
 					<ElCol :xs="24" :sm="24" :md="24" :lg="16" :xl="16">
-						<el-form-item label="昵称">
+						<el-form-item :label="t('module.user.profile.label.nickname')">
 							<el-input v-model="profile.nickname" clearable />
 						</el-form-item>
 
-						<el-form-item label="头像">
+						<el-form-item :label="t('module.user.profile.label.avatar')">
 							<el-input v-model="profile.avatar" clearable>
 								<template #prepend>
 									<el-button
@@ -109,11 +123,11 @@ onMounted(initProfileAndUsername);
 							</el-input>
 						</el-form-item>
 
-						<el-form-item label="个人主页">
+						<el-form-item :label="t('module.user.profile.label.site')">
 							<el-input v-model="profile.site" clearable />
 						</el-form-item>
 
-						<el-form-item label="个人介绍">
+						<el-form-item :label="t('module.user.profile.label.introduce')">
 							<el-input
 								v-model="profile.introduce"
 								:autosize="{ minRows: 2 }"
@@ -125,7 +139,9 @@ onMounted(initProfileAndUsername);
 						</el-form-item>
 
 						<el-form-item>
-							<el-button type="primary" @click="updateProfile">保存</el-button>
+							<el-button type="primary" @click="updateProfile">{{
+								t('module.user.profile.label.btn_save')
+							}}</el-button>
 						</el-form-item>
 					</ElCol>
 					<ElCol :xs="24" :sm="24" :md="24" :lg="8" :xl="8">
@@ -142,15 +158,27 @@ onMounted(initProfileAndUsername);
 					</ElCol>
 				</ElRow>
 			</el-tab-pane>
-			<el-tab-pane label="更新密码">
-				<el-form-item label="旧密码">
+			<!-- username -->
+			<el-tab-pane :label="t('module.user.profile.label.update_username')">
+				<el-form-item :label="t('module.user.profile.label.username')">
+					<el-input v-model="profile.username" />
+				</el-form-item>
+				<el-form-item>
+					<el-button type="primary" @click="updateUsername">{{
+						t('module.user.profile.label.btn_save')
+					}}</el-button>
+				</el-form-item>
+			</el-tab-pane>
+			<!-- password -->
+			<el-tab-pane :label="t('module.user.profile.label.update_password')">
+				<el-form-item :label="t('module.user.profile.label.old_password')">
 					<el-input
 						v-model="passwordReq.oldPassword"
 						type="password"
 						show-password
 					/>
 				</el-form-item>
-				<el-form-item label="新密码">
+				<el-form-item :label="t('module.user.profile.label.new_password')">
 					<el-input
 						v-model="passwordReq.newPassword"
 						type="password"
@@ -158,7 +186,9 @@ onMounted(initProfileAndUsername);
 					/>
 				</el-form-item>
 				<el-form-item>
-					<el-button type="primary" @click="updatePassword">保存</el-button>
+					<el-button type="primary" @click="updatePassword">{{
+						t('module.user.profile.label.btn_save')
+					}}</el-button>
 				</el-form-item>
 			</el-tab-pane>
 		</el-tabs>

@@ -2,16 +2,11 @@ ikaros:
   show-theme: false
   plugin:
     runtime-mode: development
-    fixed-plugin-path:
-      - C:\Users\li-guohao\GitRepo\ikaros-dev\plugin-alist
-    #      - C:\Develop\GitRepos\ikaros-dev\plugins\plugin-bgmtv
-    #      - C:\Develop\GitRepos\ikaros-dev\plugins\plugin-local-files-import
-    #      - C:\Develop\GitRepos\ikaros-dev\plugins\plugin-jellyfin
-    #      - C:\Develop\GitRepos\ikaros-dev\plugins\plugin-mikan
-    #      - C:\Develop\GitRepos\ikaros-dev\plugins\plugin-baidupan
 
   #    auto-start-plugin: false
   security:
+    # 30 day for local dev token expire
+    jwt-expiration-time: 18144000000
     initializer:
       master-username: tomoki
       master-password: tomoki

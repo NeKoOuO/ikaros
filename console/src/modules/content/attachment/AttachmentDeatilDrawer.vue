@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { apiClient } from '@/utils/api-client';
-import { Attachment } from '@runikaros/api-client';
-import { formatFileSize } from '@/utils/string-util';
-import { computed, nextTick, ref } from 'vue';
+import {apiClient} from '@/utils/api-client';
+import {Attachment} from '@runikaros/api-client';
+import {formatFileSize} from '@/utils/string-util';
+import {computed, nextTick, ref} from 'vue';
 import {
-	ElButton,
-	ElCol,
-	ElDescriptions,
-	ElDescriptionsItem,
-	ElDrawer,
-	ElInput,
-	ElMessage,
-	ElPopconfirm,
-	ElRow,
+  ElButton,
+  ElCol,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElDrawer,
+  ElInput,
+  ElMessage,
+  ElPopconfirm,
+  ElRow,
 } from 'element-plus';
-import { useI18n } from 'vue-i18n';
-import { isImage, isVideo, isVoice } from '@/utils/file';
-import { Edit } from '@element-plus/icons-vue';
+import {useI18n} from 'vue-i18n';
+import {isImage, isVideo, isVoice} from '@/utils/file';
+import {Edit} from '@element-plus/icons-vue';
 import Artplayer from '@/components/video/Artplayer.vue';
 import AttachmentRelationsDialog from './AttachmentRelationsDialog.vue';
 
@@ -74,7 +74,9 @@ const handleDelete = async () => {
 			})
 			.then(() => {
 				ElMessage.success(
-					t('core.fileDetail.message.event.delete') + ' ' + file.value.name
+					t('module.attachment.details.message.event.delete') +
+						' ' +
+						file.value.name
 				);
 				emit('delete', file.value);
 				drawerVisible.value = false;
@@ -102,7 +104,7 @@ const handleEditName = () => {
 
 const handleUpdateName = async () => {
 	if (!file.value.name) {
-		ElMessage.error(t('core.fileDetail.message.hint.name'));
+		ElMessage.error(t('module.attachment.details.message.hint.name'));
 		window.location.reload();
 		return;
 	}
@@ -112,7 +114,9 @@ const handleUpdateName = async () => {
 				attachment: file.value,
 			})
 			.then(() => {
-				ElMessage.success(t('core.fileDetail.message.event.updateName'));
+				ElMessage.success(
+					t('module.attachment.details.message.event.updateName')
+				);
 			});
 	} catch (error) {
 		console.error(error);
@@ -125,7 +129,9 @@ const getCompleteFileUrl = (reactiveUrl: string | undefined): string => {
 	var curPageUrl = window.location.href;
 	var pathName = window.location.pathname;
 	var localhostPath = curPageUrl.substring(0, curPageUrl.indexOf(pathName));
-	return reactiveUrl?.startsWith('http') ? reactiveUrl : localhostPath + reactiveUrl;
+	return reactiveUrl?.startsWith('http')
+		? reactiveUrl
+		: localhostPath + reactiveUrl;
 };
 
 const handleClose = (done: () => void) => {
@@ -134,29 +140,27 @@ const handleClose = (done: () => void) => {
 };
 
 const attachmentRelationsDialogVisible = ref(false);
-const onAttachmentRelationsDialogClose = async ()=>{
+const onAttachmentRelationsDialogClose = async () => {
 	// artplayerRef.value.getVideoSubtitles();
 	// artplayerRef.value.reloadArtplayer();
 	window.location.reload();
-}
-const onClose = async()=>{
+};
+const onClose = async () => {
 	drawerVisible.value = false;
 	emit('close');
-}
+};
 
 const artplayer = ref<Artplayer>();
 const artplayerRef = ref();
 const getArtplayerInstance = (art: Artplayer) => {
 	artplayer.value = art;
-}
-
-
+};
 </script>
 
 <template>
 	<el-drawer
 		v-model="drawerVisible"
-		:title="t('core.fileDetail.title')"
+		:title="t('module.attachment.details.title')"
 		direction="rtl"
 		:before-close="handleClose"
 		size="88%"
@@ -179,7 +183,7 @@ const getArtplayerInstance = (art: Artplayer) => {
 					<artplayer
 						v-else-if="isVideo(file.url as string)"
 						ref="artplayerRef"
-						v-model:attachment="file"
+						v-model:attachmentId="file.id"
 						style="width: 100%"
 						@getInstance="getArtplayerInstance"
 					/>
@@ -189,7 +193,7 @@ const getArtplayerInstance = (art: Artplayer) => {
 						controls
 						preload="metadata"
 					>
-						{{ t('core.fileDetail.message.hint.videoFormat') }}
+						{{ t('module.attachment.details.message.hint.videoFormat') }}
 					</video> -->
 					<audio
 						v-else-if="isVoice(file.url as string)"
@@ -197,9 +201,11 @@ const getArtplayerInstance = (art: Artplayer) => {
 						:volume="0.3"
 						:src="getCompleteFileUrl(file.url)"
 					>
-						{{ t('core.fileDetail.message.hint.audioFormat') }}
+						{{ t('module.attachment.details.message.hint.audioFormat') }}
 					</audio>
-					<div v-else>{{ t('core.fileDetail.message.hint.preview') }}</div>
+					<div v-else>
+						{{ t('module.attachment.details.message.hint.preview') }}
+					</div>
 				</div>
 			</el-col>
 		</el-row>
@@ -210,7 +216,7 @@ const getArtplayerInstance = (art: Artplayer) => {
 		<el-row :gutter="24" type="flex">
 			<el-col :lg="24" :md="24" :sm="24" :xl="24" :xs="24">
 				<el-descriptions
-					:title="t('core.fileDetail.descTitle')"
+					:title="t('module.attachment.details.descTitle')"
 					:column="1"
 					size="large"
 					border
@@ -219,7 +225,9 @@ const getArtplayerInstance = (art: Artplayer) => {
 					<el-descriptions-item label="ID">
 						{{ file.id }}
 					</el-descriptions-item>
-					<el-descriptions-item label="名称（双击值进行重命名）">
+					<el-descriptions-item
+						:label="t('module.attachment.details.descItemLabel.name')"
+					>
 						<span v-if="editable">
 							<el-input
 								ref="nameInput"
@@ -236,16 +244,19 @@ const getArtplayerInstance = (art: Artplayer) => {
 						</span>
 					</el-descriptions-item>
 					<el-descriptions-item
-						:label="t('core.fileDetail.descItemLabel.size')"
+						:label="t('module.attachment.details.descItemLabel.size')"
 					>
 						{{ formatFileSize(file.size) }}
 					</el-descriptions-item>
 					<el-descriptions-item
-						:label="t('core.fileDetail.descItemLabel.updateTime')"
+						:label="t('module.attachment.details.descItemLabel.updateTime')"
 					>
 						{{ file.updateTime }}
 					</el-descriptions-item>
-					<el-descriptions-item v-if="file.path" label="路径">
+					<el-descriptions-item
+						v-if="file.path"
+						:label="t('module.attachment.details.descItemLabel.path')"
+					>
 						{{ file.path }}
 					</el-descriptions-item>
 					<el-descriptions-item v-if="file.url" label="URL">
@@ -253,7 +264,7 @@ const getArtplayerInstance = (art: Artplayer) => {
 					</el-descriptions-item>
 					<el-descriptions-item
 						v-if="file.fsPath"
-						:label="t('core.fileDetail.descItemLabel.fsPath')"
+						:label="t('module.attachment.details.descItemLabel.fsPath')"
 					>
 						{{ file.fsPath }}
 					</el-descriptions-item>
@@ -262,22 +273,30 @@ const getArtplayerInstance = (art: Artplayer) => {
 		</el-row>
 
 		<template #footer>
-			<el-button @click="attachmentRelationsDialogVisible = true">关联</el-button>
+			<el-button @click="attachmentRelationsDialogVisible = true">
+				{{ t('module.attachment.details.button.relation') }}
+			</el-button>
 			<el-popconfirm
-				title="你确定要删除该文件？"
-				confirm-button-text="确定"
-				cancel-button-text="取消"
+				:title="t('module.attachment.details.popconfirm.title')"
+				:confirm-button-text="t('module.attachment.details.popconfirm.confirm')"
+				:cancel-button-text="t('module.attachment.details.popconfirm.cancel')"
 				confirm-button-type="danger"
+				width="350px"
 				@confirm="handleDelete"
 			>
 				<template #reference>
-					<el-button type="danger" :loading="deleting">删除</el-button>
+					<el-button type="danger" :loading="deleting">
+						{{ t('module.attachment.details.button.delete') }}
+					</el-button>
 				</template>
 			</el-popconfirm>
 		</template>
 
-		<AttachmentRelationsDialog v-model:visible="attachmentRelationsDialogVisible" :attachmentId="file.id" @close="onAttachmentRelationsDialogClose"/>
-
+		<AttachmentRelationsDialog
+			v-model:visible="attachmentRelationsDialogVisible"
+			:attachmentId="file.id"
+			@close="onAttachmentRelationsDialogClose"
+		/>
 	</el-drawer>
 </template>
 

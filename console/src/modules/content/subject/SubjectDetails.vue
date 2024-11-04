@@ -1,55 +1,56 @@
 <script setup lang="ts">
 import {
-	Attachment,
-	AttachmentReferenceTypeEnum,
-	EpisodeCollection,
-	SubjectCollection,
+  Attachment,
+  AttachmentReferenceTypeEnum,
+  Episode,
+  EpisodeCollection,
+  EpisodeGroupEnum,
+  EpisodeResource,
+  Subject,
+  SubjectCollection,
+  SubjectSync,
+  SubjectTag,
+  SubjectTypeEnum,
 } from '@runikaros/api-client';
-import { apiClient } from '@/utils/api-client';
-import { formatDate } from '@/utils/date';
-import {
-	Episode,
-	Subject,
-	SubjectTypeEnum,
-	SubjectTag,
-} from '@runikaros/api-client';
+import {apiClient} from '@/utils/api-client';
+import {formatDate} from '@/utils/date';
 import EpisodeDetailsDialog from './EpisodeDetailsDialog.vue';
 import router from '@/router';
-import { Check, Close } from '@element-plus/icons-vue';
+import {Check, Close} from '@element-plus/icons-vue';
 import SubjectSyncDialog from './SubjectSyncDialog.vue';
-import { useRoute } from 'vue-router';
-import { onMounted, ref, watch } from 'vue';
+import {useRoute} from 'vue-router';
+import {nextTick, onMounted, ref, watch} from 'vue';
 import {
-	ElButton,
-	ElCol,
-	ElDescriptions,
-	ElDescriptionsItem,
-	ElImage,
-	ElMessage,
-	ElPopconfirm,
-	ElRow,
-	ElTable,
-	ElTableColumn,
-	ElSelect,
-	ElOption,
-	ElInput,
-	ElTag,
+  ElButton,
+  ElCol,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElImage,
+  ElInput,
+  ElMessage,
+  ElOption,
+  ElPopconfirm,
+  ElRow,
+  ElSelect,
+  ElTable,
+  ElTableColumn,
+  ElTabPane,
+  ElTabs,
+  ElTag,
 } from 'element-plus';
 import SubjectRemoteActionDialog from './SubjectRemoteActionDialog.vue';
-import { useSettingStore } from '@/stores/setting';
-import { episodeGroupLabelMap } from '@/modules/common/constants';
-import { useUserStore } from '@/stores/user';
+import {useSettingStore} from '@/stores/setting';
 import SubjectRelationDialog from './SubjectRelationDialog.vue';
-import { useSubjectStore } from '@/stores/subject';
-import { nextTick } from 'vue';
+import {useSubjectStore} from '@/stores/subject';
 import AttachmentMultiSelectDialog from '@/modules/content/attachment/AttachmentMultiSelectDialog.vue';
 import AttachmentSelectDialog from '@/modules/content/attachment/AttachmentSelectDialog.vue';
 import SubjectCollectDialog from '@/components/modules/content/subject/SubjectCollectDialog.vue';
+import {useI18n} from 'vue-i18n';
 
 const route = useRoute();
 const settingStore = useSettingStore();
-const userStore = useUserStore();
 const subjectStore = useSubjectStore();
+const { t } = useI18n();
 
 const refreshSubjectRelactionDialog = ref(true);
 watch(route, async () => {
@@ -77,13 +78,57 @@ const subject = ref<Subject>({
 	name_cn: '',
 });
 
+const episodes = ref<Episode[]>([]);
+const episodeResources = ref<EpisodeResource[]>([]);
+
 // eslint-disable-next-line no-unused-vars
 const fetchSubjectById = async () => {
 	if (subject.value.id) {
 		subject.value = await subjectStore.fetchSubjectById(
 			subject.value.id as number
 		);
+		await fetchEpisodes();
+		await fetchEpisodeResources();
+		await fetchSubjectSyncs();
 	}
+};
+
+const fetchEpisodes = async () => {
+	const { data } = await apiClient.episode.getAllBySubjectId({
+		id: subject.value.id as number,
+	});
+	episodes.value = data;
+	if (!episodes.value || episodes.value.length === 0) {
+		batchMatchingSubjectButtonDisable.value = true;
+		deleteMatchingSubjectButtonDisable.value = true;
+	} else {
+		batchMatchingSubjectButtonDisable.value = false;
+		deleteMatchingSubjectButtonDisable.value = false;
+	}
+	if (episodes.value) {
+		episodes.value = episodes.value.sort(
+			(a, b) => (a.sequence ?? 0) - (b.sequence ?? 0)
+		);
+		loadEpisodeGroupLabels();
+	}
+	// console.debug('episodes', episodes.value);
+};
+
+const fetchEpisodeResources = async () => {
+	// console.debug('episodes', episodes.value);
+	episodeResources.value = [];
+	episodes.value.forEach(async (episode) => {
+		var ep = episode as Episode;
+		// console.debug('ep', ep);
+		if (ep.id) {
+			const { data } = await apiClient.episode.getAttachmentRefsById({
+				id: ep.id as number,
+			});
+			data.forEach((res) => {
+				if (res) episodeResources.value.push(res);
+			});
+		}
+	});
 };
 
 // eslint-disable-next-line no-unused-vars
@@ -152,6 +197,11 @@ const currentEpisode = ref<Episode>();
 const showEpisodeDetails = (ep: Episode) => {
 	currentEpisode.value = ep;
 	episodeDetailsDialogVisible.value = true;
+	const resources: EpisodeResource[] = episodeResources.value.filter(
+		(e) => e.episodeId === ep.id
+	);
+	episodeHasMultiResource.value = (resources &&
+		resources.length > 1) as boolean;
 };
 
 const episodeDetailsDialogVisible = ref(false);
@@ -197,7 +247,11 @@ const deleteSubject = async () => {
 			id: subject.value.id,
 		})
 		.then(() => {
-			ElMessage.success('删除条目' + subject.value.name + '成功');
+			ElMessage.success(
+				t('module.subject.details.message.operate.delete.success', {
+					name: subject.value.name,
+				})
+			);
 			router.push('/subjects');
 		});
 };
@@ -207,7 +261,7 @@ const openSubjectSyncDialog = () => {
 	subjectSyncDialogVisible.value = true;
 };
 const onSubjectSyncDialogCloseWithSubjectName = () => {
-	ElMessage.success('请求更新条目信息成功');
+	ElMessage.success(t('module.subject.details.message.operate.update.success'));
 	fetchSubjectById();
 };
 
@@ -238,18 +292,17 @@ const onSubjectRemoteActionDialogClose = () => {
 // 	subjectRemoteActionDialogVisible.value = true;
 // };
 
-const notCollectText = '未收藏';
-const clickCollectText = '点击收藏';
-const removeCollectText = '取消收藏';
-const collectText = '已收藏';
+const notCollectText = t('module.subject.details.text.collect.not');
+const clickCollectText = t('module.subject.details.text.collect.click');
+const removeCollectText = t('module.subject.details.text.collect.cancel');
+const collectText = t('module.subject.details.text.collect.done');
 const collectButtonText = ref(notCollectText);
 const updateSubjectCollection = async () => {
 	var isUnCollect = subjectCollection.value && subjectCollection.value.type;
 	if (!isUnCollect) {
 		return;
 	}
-	await apiClient.subjectCollection.collectSubject({
-		userId: userStore.currentUser?.entity?.id as number,
+	await apiClient.collectionSubject.collectSubject({
 		subjectId: subject.value.id as number,
 		type: subjectCollection.value.type as
 			| 'WISH'
@@ -258,16 +311,7 @@ const updateSubjectCollection = async () => {
 			| 'SHELVE'
 			| 'DISCARD',
 	});
-	ElMessage.success('更新成功');
-};
-const updateSubjectCollectionProgress = async () => {
-	await apiClient.subjectCollection.updateSubjectCollectionMainEpProgress({
-		userId: userStore.currentUser?.entity?.id as number,
-		subjectId: subject.value.id as number,
-		progress: subjectCollection.value.main_ep_progress as number,
-	});
-	ElMessage.success('更新条目正片观看进度成功');
-	await fetchDatas();
+	ElMessage.success(t('module.subject.collect.message.operate.update.success'));
 };
 
 const subjectCollectDialogVisible = ref(false);
@@ -276,11 +320,12 @@ const changeSubjectCollectState = async () => {
 	console.log('isUnCollect', isUnCollect);
 	if (isUnCollect) {
 		// un collect
-		await apiClient.subjectCollection.removeSubjectCollect({
-			userId: userStore.currentUser?.entity?.id as number,
+		await apiClient.collectionSubject.removeSubjectCollect({
 			subjectId: subject.value.id as number,
 		});
-		ElMessage.success('取消收藏成功');
+		ElMessage.success(
+			t('module.subject.details.message.operate.cancel.success')
+		);
 	} else {
 		// collect
 		subjectCollectDialogVisible.value = true;
@@ -292,8 +337,7 @@ const subjectCollection = ref<SubjectCollection>({});
 // eslint-disable-next-line no-unused-vars
 const fetchSubjectCollection = async () => {
 	// eslint-disable-next-line no-unused-vars
-	const rsp = await apiClient.subjectCollection.findSubjectCollection({
-		userId: userStore.currentUser?.entity?.id as number,
+	const rsp = await apiClient.collectionSubject.findCollectionSubject({
 		subjectId: subject.value.id as number,
 	});
 
@@ -314,9 +358,8 @@ const fetchSubjectCollection = async () => {
 const episodeCollections = ref<EpisodeCollection[]>([]);
 const fetchEpisodeCollections = async () => {
 	const { data } =
-		await apiClient.episodeCollection.findEpisodeCollectionsByUserIdAndSubjectId(
+		await apiClient.collectionEpisode.findCollectionEpisodesByUserIdAndSubjectId(
 			{
-				userId: userStore.currentUser?.entity?.id as number,
 				subjectId: subject.value.id as number,
 			}
 		);
@@ -336,12 +379,19 @@ const udpateEpisodeCollectionProgress = async (
 	isFinish: boolean,
 	episode: Episode
 ) => {
-	await apiClient.episodeCollection.updateEpisodeCollectionFinish({
-		userId: userStore.currentUser?.entity?.id as number,
+	if (!subjectCollection.value.id) {
+		ElMessage.warning(
+			t('module.subject.episode.collect.message.operate.mark-finish-notcollect')
+		);
+		return;
+	}
+	await apiClient.collectionEpisode.updateCollectionEpisodeFinish({
 		episodeId: episode.id as number,
 		finish: isFinish,
 	});
-	ElMessage.success('标记是否观看完成成功');
+	ElMessage.success(
+		t('module.subject.episode.collect.message.operate.mark-finish')
+	);
 	await fetchDatas();
 };
 
@@ -357,6 +407,8 @@ const fetchDatas = async () => {
 
 const bindMasterIsEpisodeFlag = ref(false);
 const batchMatchingSubjectButtonLoading = ref(false);
+const batchMatchingSubjectButtonDisable = ref(false);
+const deleteMatchingSubjectButtonDisable = ref(false);
 const batchMatchingEpisodeButtonLoading = ref(false);
 const attachmentMultiSelectDialogVisible = ref(false);
 const onCloseWithAttachments = async (attachments: Attachment[]) => {
@@ -384,7 +436,11 @@ const delegateBatchMatchingSubject = async (
 			},
 		})
 		.then(() => {
-			ElMessage.success('批量匹配条目所有剧集和多资源成功');
+			ElMessage.success(
+				t(
+					'module.attachment.reference.message.operate.batch-match-subject-episodes-atts'
+				)
+			);
 			window.location.reload();
 		})
 		.finally(() => {
@@ -407,7 +463,11 @@ const delegateBatchMatchingEpisode = async (
 			},
 		})
 		.then(() => {
-			ElMessage.success('批量匹单个剧集和多资源成功');
+			ElMessage.success(
+				t(
+					'module.attachment.reference.message.operate.batch-match-episode-atts'
+				)
+			);
 			window.location.reload();
 		})
 		.finally(() => {
@@ -428,7 +488,9 @@ const onCloseWithAttachmentForAttachmentSelectDialog = async (
 			referenceId: currentOperateEpisode.value?.id as number,
 		},
 	});
-	ElMessage.success('单个剧集和附件匹配成功');
+	ElMessage.success(
+		t('module.attachment.reference.message.operate.batch-match-episode-atts')
+	);
 	await fetchDatas();
 };
 
@@ -447,7 +509,9 @@ const onTagRemove = async (tag: SubjectTag) => {
 		masterId: tag.subjectId,
 		name: tag.name,
 	});
-	ElMessage.success('移除标签【' + tag.name + '】成功');
+	ElMessage.success(
+		t('module.subject.tag.message.operate.remove', { name: tag.name })
+	);
 	await fetchTags();
 };
 const newTagInputVisible = ref(false);
@@ -460,13 +524,16 @@ const showNewTagInput = () => {
 };
 const newTag = ref<SubjectTag>({});
 const onNewTagNameChange = async () => {
+	if (!newTagInputVisible.value) return;
 	var tagName = newTag.value.name;
 	if (
 		!tagName ||
 		tagName === '' ||
 		tags.value.filter((t) => tagName === t.name).length > 0
 	) {
-		ElMessage.warning('标签名为空或者重复，跳过创建标签操作。');
+		ElMessage.warning(
+			t('module.subject.tag.message.hint.rename-when-repetition')
+		);
 		newTagInputVisible.value = false;
 		return;
 	}
@@ -477,10 +544,113 @@ const onNewTagNameChange = async () => {
 			name: newTag.value.name,
 		},
 	});
-	ElMessage.success('新建标签【' + newTag.value.name + '】成功');
+	ElMessage.success(
+		t('module.subject.tag.message.operate.create', { name: newTag.value.name })
+	);
 	await fetchTags();
 	newTagInputVisible.value = false;
 	newTagInputRef.value!.input!.value = '';
+	newTag.value.name = '';
+};
+
+const batchCancenMatchingSubjectButtonLoading = ref(false);
+const deleteBatchingAttachments = async () => {
+	// console.debug('deleteBatchingAttachments subject episodes', subject.value.episodes)
+	batchCancenMatchingSubjectButtonLoading.value = true;
+	await episodes.value?.forEach(async (ep) => {
+		await apiClient.attachmentRef.removeAllByTypeAndReferenceId({
+			attachmentReference: {
+				type: 'EPISODE',
+				referenceId: ep.id,
+			},
+		});
+	});
+	batchCancenMatchingSubjectButtonLoading.value = false;
+	ElMessage.success(
+		t('module.subject.details.message.operate.delete-batch-attachments.success')
+	);
+	fetchDatas();
+};
+
+const isEpisodeBindResource = (episode: Episode): boolean | undefined => {
+	const resources: EpisodeResource[] = episodeResources.value.filter(
+		(e) => e.episodeId === episode.id
+	);
+	// console.debug('episodeResources.value', episodeResources.value);
+	// console.debug('episode', episode);
+	// console.debug('resources', resources);
+	return resources && resources.length > 0;
+};
+
+interface EpisdoeGroupItem {
+	group: EpisodeGroupEnum;
+	label: string;
+	count: number;
+}
+
+const episodeGroupItems = ref<EpisdoeGroupItem[]>([]);
+const doPushEpGroupItems = (
+	group: EpisodeGroupEnum,
+	groupCountMap: Map<EpisodeGroupEnum, number>,
+	epGroupItems: EpisdoeGroupItem[]
+) => {
+	if (!groupCountMap.has(group)) return;
+	const count = groupCountMap.get(group) as number;
+	epGroupItems.push({
+		group: group,
+		count: count,
+		label:
+			t('module.subject.episode.group.' + group.toString()) + '(' + count + ')',
+	});
+	groupCountMap.delete(group);
+};
+const loadEpisodeGroupLabels = () => {
+	const groupCountMap = new Map<EpisodeGroupEnum, number>();
+	console.debug('subject', subject.value);
+	episodes.value?.forEach((ep) => {
+		const epGroup = ep.group as EpisodeGroupEnum;
+		if (groupCountMap.get(epGroup)) {
+			let count = groupCountMap.get(epGroup) as number;
+			count++;
+			groupCountMap.set(epGroup, count);
+		} else {
+			groupCountMap.set(epGroup, 1);
+		}
+	});
+	console.debug('groupCountMap', groupCountMap);
+	const epGroupItems: EpisdoeGroupItem[] = [];
+	// MAIN
+	doPushEpGroupItems(EpisodeGroupEnum.Main, groupCountMap, epGroupItems);
+
+	// OP
+	doPushEpGroupItems(EpisodeGroupEnum.OpeningSong, groupCountMap, epGroupItems);
+
+	// ED
+	doPushEpGroupItems(EpisodeGroupEnum.EndingSong, groupCountMap, epGroupItems);
+
+	// SP
+	doPushEpGroupItems(
+		EpisodeGroupEnum.SpecialPromotion,
+		groupCountMap,
+		epGroupItems
+	);
+
+	// remaining
+	groupCountMap.forEach((val, key) => {
+		epGroupItems.push({
+			group: key,
+			label: t('module.subject.episode.group.' + key) + '(' + val + ')',
+			count: val,
+		});
+	});
+	console.debug('epGroupLabelSet', epGroupItems);
+	episodeGroupItems.value = epGroupItems;
+};
+
+const subjectSyncs = ref<SubjectSync[]>([]);
+const fetchSubjectSyncs = async () => {
+	const { data } = await apiClient.subjectSync.getSubjectSyncsBySubjectId({id: subject.value.id as number})
+	subjectSyncs.value = data;
 };
 
 onMounted(fetchDatas);
@@ -518,15 +688,26 @@ onMounted(fetchDatas);
 
 	<el-row>
 		<el-col :span="24">
-			<el-button plain @click="toSubjectPut"> 编辑</el-button>
-			<el-button plain @click="openSubjectSyncDialog"> 更新</el-button>
-			<el-popconfirm title="您确定要删除该条目吗？" @confirm="deleteSubject">
+			<el-button plain @click="toSubjectPut">
+				{{ t('module.subject.details.text.button.edit') }}
+			</el-button>
+			<el-button plain @click="openSubjectSyncDialog">
+				{{ t('module.subject.details.text.button.update') }}
+			</el-button>
+			<el-popconfirm
+				:title="t('module.subject.details.dele-popconfirm.title')"
+				@confirm="deleteSubject"
+			>
 				<template #reference>
-					<el-button plain type="danger"> 删除</el-button>
+					<el-button plain type="danger">
+						{{ t('module.subject.details.text.button.delete') }}
+					</el-button>
 				</template>
 			</el-popconfirm>
 
-			<el-button plain @click="openSubjectRelationDialog"> 关系</el-button>
+			<el-button plain @click="openSubjectRelationDialog">
+				{{ t('module.subject.details.text.button.relaction') }}
+			</el-button>
 		</el-col>
 	</el-row>
 	<br />
@@ -538,7 +719,7 @@ onMounted(fetchDatas);
 						style="width: 100%"
 						:src="subject.cover as string"
 						:zoom-rate="1.2"
-						:preview-src-list="new Array(subject.cover)  as string[]"
+						:preview-src-list="new Array(subject.cover) as string[]"
 						:initial-index="4"
 						fit="cover"
 					/>
@@ -554,32 +735,49 @@ onMounted(fetchDatas);
 						<el-descriptions-item label="ID" :span="1">
 							{{ subject.id }}
 						</el-descriptions-item>
-						<el-descriptions-item label="名称" :span="1">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.name')"
+							:span="1"
+						>
 							{{ subject.name }}
 						</el-descriptions-item>
-						<el-descriptions-item label="中文名称" :span="1">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.name_cn')"
+							:span="1"
+						>
 							{{ subject.name_cn }}
 						</el-descriptions-item>
-						<el-descriptions-item label="放送时间" :span="1">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.air_time')"
+							:span="1"
+						>
 							{{ subject.airTime }}
 						</el-descriptions-item>
-						<el-descriptions-item label="类型" :span="1">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.type')"
+							:span="1"
+						>
 							{{ subject.type }}
 						</el-descriptions-item>
 						<el-descriptions-item label="NSFW" :span="1">
 							{{ subject.nsfw }}
 						</el-descriptions-item>
-						<el-descriptions-item label="介绍" :span="6">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.summary')"
+							:span="6"
+						>
 							{{ subject.summary }}
 						</el-descriptions-item>
 					</el-descriptions>
 					<el-descriptions
-						v-if="subject.syncs && subject.syncs.length > 0"
+						v-if="subjectSyncs && subjectSyncs.length > 0"
 						size="large"
 						border
 					>
-						<el-descriptions-item label="同步平台">
-							<span v-for="(sync, index) in subject.syncs" :key="index">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.sync-platform')"
+						>
+							<span v-for="(sync, index) in subjectSyncs" :key="index">
 								{{ sync.platform }} :
 								<span v-if="sync.platform === 'BGM_TV'">
 									<a
@@ -596,12 +794,14 @@ onMounted(fetchDatas);
 						</el-descriptions-item>
 					</el-descriptions>
 					<el-descriptions size="large" border>
-						<el-descriptions-item label="标签">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.tag')"
+						>
 							<el-tag
 								v-for="tag in tags"
 								:key="tag.id"
 								closable
-								style="margin-right: 5px"
+								style="margin-right: 5px; margin-top: 5px"
 								:disable-transitions="false"
 								@close="onTagRemove(tag)"
 							>
@@ -614,21 +814,37 @@ onMounted(fetchDatas);
 								size="small"
 								style="max-width: 80px"
 								@blur="onNewTagNameChange"
+								@keydown.enter="onNewTagNameChange"
 							/>
-							<el-button v-else size="small" @click="showNewTagInput">
-								新增标签
+							<el-button
+								v-else
+								size="small"
+								style="margin-top: 5px"
+								@click="showNewTagInput"
+							>
+								{{ t('module.subject.details.text.button.add-tag') }}
 							</el-button>
 						</el-descriptions-item>
 					</el-descriptions>
 					<el-descriptions size="large" border>
-						<el-descriptions-item label="收藏状态">
+						<el-descriptions-item
+							:label="t('module.subject.details.label.collect-status')"
+						>
 							<el-popconfirm
 								:title="
-									'您确定要' +
+									t(
+										'module.subject.details.cancel-collect-popconfirm.title-prefix'
+									) +
 									(subjectCollection && subjectCollection.type
-										? '取消收藏'
-										: '收藏') +
-									'该条目吗？'
+										? t(
+												'module.subject.details.cancel-collect-popconfirm.cancel-collect'
+										  )
+										: t(
+												'module.subject.details.cancel-collect-popconfirm.collect'
+										  )) +
+									t(
+										'module.subject.details.cancel-collect-popconfirm.title-postfix'
+									)
 								"
 								@confirm="changeSubjectCollectState"
 							>
@@ -660,117 +876,189 @@ onMounted(fetchDatas);
 								placeholder="Select"
 								@change="updateSubjectCollection"
 							>
-								<el-option label="想看" value="WISH" />
-								<el-option label="在看" value="DOING" />
-								<el-option label="看完" value="DONE" />
-								<el-option label="搁置" value="SHELVE" />
-								<el-option label="抛弃" value="DISCARD" />
+								<el-option
+									:label="t('module.subject.collect.type.wish')"
+									value="WISH"
+								/>
+								<el-option
+									:label="t('module.subject.collect.type.doing')"
+									value="DOING"
+								/>
+								<el-option
+									:label="t('module.subject.collect.type.done')"
+									value="DONE"
+								/>
+								<el-option
+									:label="t('module.subject.collect.type.shelve')"
+									value="SHELVE"
+								/>
+								<el-option
+									:label="t('module.subject.collect.type.discard')"
+									value="DISCARD"
+								/>
 							</el-select>
-							&nbsp;&nbsp; 观看进度：
-							<el-input
-								v-model="subjectCollection.main_ep_progress"
-								placeholder="输入观看进度，回车更新"
-								style="width: 200px"
-								@change="updateSubjectCollectionProgress"
-							/>
 						</el-descriptions-item>
 					</el-descriptions>
 				</el-col>
 			</el-row>
 			<el-row>
 				<el-col :span="24">
-					<el-table :data="subject.episodes" @row-dblclick="showEpisodeDetails">
-						<el-table-column
-							label="分组"
-							prop="group"
-							width="110px"
-							show-overflow-tooltip
-							sortable
+					<el-tabs type="border-card">
+						<el-tab-pane
+							v-for="item in episodeGroupItems"
+							:key="item.group"
+							:label="item.label"
 						>
-							<template #default="scoped">
-								{{ episodeGroupLabelMap.get(scoped.row.group) }}
-							</template>
-						</el-table-column>
-						<el-table-column
-							label="序号"
-							prop="sequence"
-							width="80px"
-							sortable
-						/>
-						<el-table-column label="原始名称" prop="name" />
-						<el-table-column label="中文名称" prop="name_cn" />
-						<el-table-column
-							label="发布日期"
-							prop="air_time"
-							sortable
-							:formatter="airTimeDateFormatter"
-						/>
-						<el-table-column label="操作" width="320">
-							<template #header>
-								<el-button
-									plain
-									:loading="batchMatchingSubjectButtonLoading"
-									@click="
-										() => {
-											attachmentMultiSelectDialogVisible = true;
-											bindMasterIsEpisodeFlag = false;
-										}
-									"
+							<el-table
+								:data="episodes?.filter((ep) => ep.group === item.group)"
+								@row-dblclick="showEpisodeDetails"
+							>
+								<el-table-column
+									:label="t('module.subject.details.episode.label.sequence')"
+									prop="sequence"
+									width="80px"
+									sortable
+								/>
+								<el-table-column
+									:label="t('module.subject.details.episode.label.name')"
+									prop="name"
+								/>
+								<el-table-column
+									:label="t('module.subject.details.episode.label.name_cn')"
+									prop="name_cn"
+								/>
+								<el-table-column
+									:label="t('module.subject.details.episode.label.air_time')"
+									prop="air_time"
+									sortable
+									:formatter="airTimeDateFormatter"
+								/>
+								<el-table-column
+									:label="t('module.subject.details.episode.label.operate')"
+									width="320"
 								>
-									批量绑定资源
-								</el-button>
-							</template>
-							<template #default="scoped">
-								<el-button plain @click="showEpisodeDetails(scoped.row)">
-									详情
-								</el-button>
+									<template
+										v-if="item.group === EpisodeGroupEnum.Main.toString()"
+										#header
+									>
+										<el-button
+											plain
+											:loading="batchMatchingSubjectButtonLoading"
+											:disabled="batchMatchingSubjectButtonDisable"
+											@click="
+												() => {
+													attachmentMultiSelectDialogVisible = true;
+													bindMasterIsEpisodeFlag = false;
+												}
+											"
+										>
+											{{
+												t(
+													'module.subject.details.episode.label.button.batch-resources'
+												)
+											}}
+										</el-button>
+										<el-popconfirm
+											:title="
+												t(
+													'module.subject.details.cancel-batch-popconfirm.title'
+												)
+											"
+											@confirm="deleteBatchingAttachments"
+										>
+											<template #reference>
+												<el-button
+													plain
+													type="danger"
+													:disabled="deleteMatchingSubjectButtonDisable"
+													:loading="batchCancenMatchingSubjectButtonLoading"
+												>
+													{{
+														t(
+															'module.subject.details.episode.label.button.cancel-batch-resources'
+														)
+													}}
+												</el-button>
+											</template>
+										</el-popconfirm>
+									</template>
+									<template #default="scoped">
+										<el-button
+											plain
+											:icon="isEpisodeBindResource(scoped.row) ? Check : Close"
+											:color="
+												isEpisodeBindResource(scoped.row)
+													? '#00CCFF'
+													: '#FF0000'
+											"
+											@click="showEpisodeDetails(scoped.row)"
+										>
+											{{
+												t('module.subject.details.episode.label.button.details')
+											}}
+										</el-button>
 
-								<el-button
-									plain
-									:icon="
-										getEpisodeCollectionByEpisodeId(scoped.row)?.finish
-											? Check
-											: Close
-									"
-									@click="
-										udpateEpisodeCollectionProgress(
-											!getEpisodeCollectionByEpisodeId(scoped.row)?.finish,
-											scoped.row
-										)
-									"
-								>
-									{{
-										getEpisodeCollectionByEpisodeId(scoped.row)?.finish
-											? '重置'
-											: '看完'
-									}}
-								</el-button>
-								<!-- <el-button
-									plain
-									@click="showEpisodeCollectionDetails(scoped.row)"
-								>
-									进度
-								</el-button> -->
-								<el-button
-									v-if="
-										settingStore.remoteEnable &&
-										scoped.row.resources &&
-										scoped.row.resources.length > 0
-									"
-									plain
-									@click="
-										openFileRemoteActionDialog(
-											scoped.row.resources[0].file_id,
-											scoped.row.resources[0].canRead
-										)
-									"
-								>
-									<span v-if="scoped.row.resources[0].canRead"> 推送 </span>
-									<span v-else> 拉取 </span>
-								</el-button>
-							</template>
-						</el-table-column>
-					</el-table>
+										<el-button
+											v-if="subjectCollection && subjectCollection.type"
+											plain
+											:icon="
+												getEpisodeCollectionByEpisodeId(scoped.row)?.finish
+													? Check
+													: Close
+											"
+											@click="
+												udpateEpisodeCollectionProgress(
+													!getEpisodeCollectionByEpisodeId(scoped.row)?.finish,
+													scoped.row
+												)
+											"
+										>
+											{{
+												getEpisodeCollectionByEpisodeId(scoped.row)?.finish
+													? t(
+															'module.subject.details.episode.label.button.reset'
+													  )
+													: t(
+															'module.subject.details.episode.label.button.done'
+													  )
+											}}
+										</el-button>
+										<!-- <el-button
+                      plain
+                      @click="showEpisodeCollectionDetails(scoped.row)"
+                    >
+                      进度
+                    </el-button> -->
+										<el-button
+											v-if="
+												settingStore.remoteEnable &&
+												scoped.row.resources &&
+												scoped.row.resources.length > 0
+											"
+											plain
+											@click="
+												openFileRemoteActionDialog(
+													scoped.row.resources[0].file_id,
+													scoped.row.resources[0].canRead
+												)
+											"
+										>
+											<span v-if="scoped.row.resources[0].canRead">
+												{{
+													t('module.subject.details.episode.label.button.push')
+												}}
+											</span>
+											<span v-else>
+												{{
+													t('module.subject.details.episode.label.button.pull')
+												}}
+											</span>
+										</el-button>
+									</template>
+								</el-table-column>
+							</el-table>
+						</el-tab-pane>
+					</el-tabs>
 				</el-col>
 			</el-row>
 		</el-col>
@@ -788,6 +1076,7 @@ onMounted(fetchDatas);
 		v-model:visible="episodeDetailsDialogVisible"
 		v-model:ep="currentEpisode"
 		v-model:multiResource="episodeHasMultiResource"
+		@close="fetchEpisodeResources"
 		@removeEpisodeFilesBind="fetchSubjectById"
 	/>
 

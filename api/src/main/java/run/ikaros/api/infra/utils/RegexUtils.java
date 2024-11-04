@@ -65,11 +65,11 @@ public class RegexUtils {
      * .
      */
     @Nonnull
-    public static Long getFileNameTagEpSeq(@Nonnull final String fileName) {
+    public static Double getFileNameTagEpSeq(@Nonnull final String fileName) {
         AssertUtils.notBlank(fileName, "fileName");
         Set<String> strSet = new HashSet<>();
         if ("[]".equalsIgnoreCase(fileName)) {
-            return -1L;
+            return -1D;
         }
         String originalFileName = fileName;
 
@@ -84,9 +84,9 @@ public class RegexUtils {
         return strSet.stream()
             .map(postfix -> postfix.replace("[", "")
                 .replace("]", ""))
-            .flatMap((Function<String, Stream<Long>>) s -> {
+            .flatMap((Function<String, Stream<Double>>) s -> {
                 try {
-                    return Stream.of(Long.parseLong(s));
+                    return Stream.of(Double.parseDouble(s));
                 } catch (NumberFormatException numberFormatException) {
                     throw new RegexMatchingException(
                         "file name tag episode seq matching exception , file name: "
@@ -100,7 +100,7 @@ public class RegexUtils {
      * Get episode seq by file name, such as: xxxx 04 xxxx.mp4 => 04 .
      */
     @Nonnull
-    public static Long getFileNameBlankEpSeq(@Nonnull final String fileName) {
+    public static Double getFileNameBlankEpSeq(@Nonnull final String fileName) {
         AssertUtils.notBlank(fileName, "fileName");
         Set<String> strSet = new HashSet<>();
 
@@ -119,7 +119,61 @@ public class RegexUtils {
 
         return strSet.stream().findFirst()
             .map(String::trim)
-            .map(Long::parseLong)
+            .map(Double::parseDouble)
+            .orElse(null);
+    }
+
+    /**
+     * Get episode seq by file name, such as: xxxx-04-xxxx.mp4 => 04 .
+     */
+    @Nonnull
+    public static Double getFileNameHorizontalEpSeq(@Nonnull final String fileName) {
+        AssertUtils.notBlank(fileName, "fileName");
+        Set<String> strSet = new HashSet<>();
+
+        Matcher matcher =
+            Pattern.compile(RegexConst.FILE_NAME_EPISODE_SEQUENCE_WITH_HORIZONTAL)
+                .matcher(fileName);
+        while (matcher.find()) {
+            strSet.add(matcher.group());
+        }
+
+        if (strSet.isEmpty()) {
+            throw new RegexMatchingException(
+                "file name episode seq matching exception , file name: "
+                    + fileName);
+        }
+
+        return strSet.stream().findFirst()
+            .map(str -> str.replace("-", ""))
+            .map(Double::parseDouble)
+            .orElse(null);
+    }
+
+    /**
+     * Get episode seq by file name, such as: xxxx_04_xxxx.mp4 => 04 .
+     */
+    @Nonnull
+    public static Double getFileNameUnderlineEpSeq(@Nonnull final String fileName) {
+        AssertUtils.notBlank(fileName, "fileName");
+        Set<String> strSet = new HashSet<>();
+
+        Matcher matcher =
+            Pattern.compile(RegexConst.FILE_NAME_EPISODE_SEQUENCE_WITH_UNDERLINE)
+                .matcher(fileName);
+        while (matcher.find()) {
+            strSet.add(matcher.group());
+        }
+
+        if (strSet.isEmpty()) {
+            throw new RegexMatchingException(
+                "file name episode seq matching exception , file name: "
+                    + fileName);
+        }
+
+        return strSet.stream().findFirst()
+            .map(str -> str.replace("_", ""))
+            .map(Double::parseDouble)
             .orElse(null);
     }
 
@@ -127,7 +181,7 @@ public class RegexUtils {
      * Get episode seq by file name and ep integrally, such as: xxxx EP04 xxxx.mp4 => 04 .
      */
     @Nonnull
-    public static Long getEpFileNameIntegrallySeq(@Nonnull final String fileName) {
+    public static Double getEpFileNameIntegrallySeq(@Nonnull final String fileName) {
         AssertUtils.notBlank(fileName, "fileName");
         Set<String> strSet = new HashSet<>();
 
@@ -147,7 +201,7 @@ public class RegexUtils {
         return strSet.stream().findFirst()
             .map(String::trim)
             .map(str -> str.replace("EP", ""))
-            .map(Long::parseLong)
+            .map(Double::parseDouble)
             .orElse(null);
     }
 
@@ -238,11 +292,18 @@ public class RegexUtils {
 
     /**
      * Parse episode seq by file name.
+     * <ul>
+     *     <li>getFileNameBlankEpSeq: xxxx 04 xxxx. mp4 => 04 .</li>
+     *     <li>getFileNameTagEpSeq: xxxxxxx[102.5] xxxxxx. mp4 => 102.5 , 支持中括号内0~999.0的浮点数.</li>
+     *     <li>getEpFileNameIntegrallySeq: xxxx EP04 xxxx. mp4 => 04 .</li>
+     *     <li>getFileNameHorizontalEpSeq: xxxx-04-xxxx. mp4 => 04 .</li>
+     *     <li>getFileNameUnderlineEpSeq: xxxx_04_xxxx. mp4 => 04 .</li>
+     * </ul>
      */
     @Nonnull
-    public static Long parseEpisodeSeqByFileName(String fileName) {
+    public static Double parseEpisodeSeqByFileName(String fileName) {
         AssertUtils.notBlank(fileName, "fileName");
-        Long seq = -1L;
+        Double seq = -1D;
         try {
             seq = getFileNameBlankEpSeq(fileName);
         } catch (RegexMatchingException e) {
@@ -252,7 +313,15 @@ public class RegexUtils {
                 try {
                     seq = getEpFileNameIntegrallySeq(fileName);
                 } catch (RegexMatchingException e3) {
-                    log.warn("parse episode seq fail by file name: {}.", fileName, e3);
+                    try {
+                        seq = getFileNameHorizontalEpSeq(fileName);
+                    } catch (RegexMatchingException e4) {
+                        try {
+                            seq = getFileNameUnderlineEpSeq(fileName);
+                        } catch (RegexMatchingException e5) {
+                            log.warn("parse episode seq fail by file name: {}.", fileName, e5);
+                        }
+                    }
                 }
             }
         }

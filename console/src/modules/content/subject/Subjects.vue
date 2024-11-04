@@ -1,27 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { Subject } from '@runikaros/api-client';
-import { apiClient } from '@/utils/api-client';
+import {onMounted, ref, watch} from 'vue';
+import {Subject} from '@runikaros/api-client';
+import {apiClient} from '@/utils/api-client';
 import SubjectSyncDialog from './SubjectSyncDialog.vue';
-import { base64Decode, base64Encode } from '@/utils/string-util';
-import { useRouter, useRoute } from 'vue-router';
+import {base64Decode, base64Encode} from '@/utils/string-util';
+import {useRoute, useRouter} from 'vue-router';
 import SubjectCardLink from '@/components/modules/content/subject/SubjectCardLink.vue';
-import {
-	ElRow,
-	ElCol,
-	ElForm,
-	ElFormItem,
-	ElInput,
-	ElSelect,
-	ElOption,
-	ElButton,
-	ElPagination,
-} from 'element-plus';
+import {ElButton, ElCol, ElForm, ElFormItem, ElInput, ElOption, ElPagination, ElRow, ElSelect,} from 'element-plus';
+import {useI18n} from 'vue-i18n';
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 
-const fetchSubjectByRouterQuery = () => {
+const fetchSubjectByRouterQuery = async () => {
 	// console.log('route.query', route.query);
 
 	if (route.query.name !== undefined) {
@@ -51,8 +43,16 @@ const fetchSubjectByRouterQuery = () => {
 			| 'OTHER';
 	}
 
+	if (route.query.page !== undefined) {
+		findSubjectsCondition.value.page = route.query.page as unknown as number;
+	}
+
+	if (route.query.size !== undefined) {
+		findSubjectsCondition.value.size = route.query.size as unknown as number;
+	}
+
 	// console.log('findSubjectsCondition', findSubjectsCondition.value);
-	fetchSubjects();
+	await fetchSubjects();
 };
 
 watch(route, () => {
@@ -98,6 +98,7 @@ const fetchSubjects = async () => {
 	findSubjectsCondition.value.size = data.size;
 	findSubjectsCondition.value.total = data.total;
 	subjects.value = data.items as Subject[];
+	await fetchEpisodePercentags();
 };
 
 const subjectSyncDialogVisible = ref(false);
@@ -128,8 +129,48 @@ watch(findSubjectsCondition.value, () => {
 	if (type !== route.query.type) {
 		query.type = type;
 	}
+	const page = findSubjectsCondition.value.page;
+	if (page !== query.page) {
+		query.page = page as number;
+	}
+	const size = findSubjectsCondition.value.size;
+	if (size !== query.size) {
+		query.size = size as number;
+	}
 	router.push({ path: route.path, query });
 });
+
+interface EpisodeCountPercentage {
+	subjectId: number;
+	percentage: number;
+}
+
+const episodeCountPercentages = ref<EpisodeCountPercentage[]>([]);
+const fetchEpisodePercentags = async () => {
+	await subjects.value.forEach(async (sub) => {
+		var subId = sub.id as number;
+		var totalRsp = await apiClient.episode.getCountTotalBySubjectId({
+			id: subId,
+		});
+		var countRsp = await apiClient.episode.getCountMatchingBySubjectId({
+			id: subId,
+		});
+		var percentage = (countRsp.data / totalRsp.data) * 100;
+		episodeCountPercentages.value.push({
+			subjectId: subId,
+			percentage: percentage,
+		});
+	});
+	// console.debug('episodeCountPercentages', episodeCountPercentages.value);
+};
+const episodeAttsPercentage = (subject: Subject): number => {
+	// console.debug('subject', subject);
+	var subjectId = subject.id as number;
+	return (
+		episodeCountPercentages.value.find((e) => e.subjectId === subjectId)
+			?.percentage ?? 0
+	);
+};
 
 onMounted(fetchSubjectByRouterQuery);
 </script>
@@ -144,20 +185,26 @@ onMounted(fetchSubjectByRouterQuery);
 			<el-form :inline="true" :model="findSubjectsCondition">
 				<el-row :gutter="1">
 					<el-col :xs="24" :sm="24" :md="24" :lg="7" :xl="7">
-						<el-form-item label="原始名称" style="width: 95%">
+						<el-form-item
+							:label="t('module.subject.label.name')"
+							style="width: 95%"
+						>
 							<el-input
 								v-model="findSubjectsCondition.name"
-								placeholder="原始名称模糊匹配"
+								:placeholder="t('module.subject.placeholder.name')"
 								clearable
 								@change="fetchSubjects"
 							/>
 						</el-form-item>
 					</el-col>
 					<el-col :xs="24" :sm="24" :md="24" :lg="7" :xl="7">
-						<el-form-item label="中文名称" style="width: 95%">
+						<el-form-item
+							:label="t('module.subject.label.name_cn')"
+							style="width: 95%"
+						>
 							<el-input
 								v-model="findSubjectsCondition.nameCn"
-								placeholder="中文名称模糊匹配"
+								:placeholder="t('module.subject.placeholder.name_cn')"
 								clearable
 								@change="fetchSubjects"
 							/>
@@ -170,25 +217,55 @@ onMounted(fetchSubjectByRouterQuery);
 								clearable
 								@change="fetchSubjects"
 							>
-								<el-option label="是" :value="true" />
-								<el-option label="非" :value="false" />
+								<el-option
+									:label="t('module.subject.select.nsfw-true')"
+									:value="true"
+								/>
+								<el-option
+									:label="t('module.subject.select.nsfw-false')"
+									:value="false"
+								/>
 							</el-select>
 						</el-form-item>
 					</el-col>
 					<el-col :xs="24" :sm="24" :md="24" :lg="5" :xl="5">
-						<el-form-item label="所属类型" style="width: 95%">
+						<el-form-item
+							:label="t('module.subject.label.type')"
+							style="width: 95%"
+						>
 							<el-select
 								v-model="findSubjectsCondition.type"
 								clearable
 								@change="fetchSubjects"
 							>
-								<el-option label="动漫" value="ANIME" />
-								<el-option label="漫画" value="COMIC" />
-								<el-option label="游戏" value="GAME" />
-								<el-option label="音声" value="MUSIC" />
-								<el-option label="小说" value="NOVEL" />
-								<el-option label="三次元" value="REAL" />
-								<el-option label="其它" value="OTHER" />
+								<el-option
+									:label="t('module.subject.type.anime')"
+									value="ANIME"
+								/>
+								<el-option
+									:label="t('module.subject.type.comic')"
+									value="COMIC"
+								/>
+								<el-option
+									:label="t('module.subject.type.game')"
+									value="GAME"
+								/>
+								<el-option
+									:label="t('module.subject.type.music')"
+									value="MUSIC"
+								/>
+								<el-option
+									:label="t('module.subject.type.novel')"
+									value="NOVEL"
+								/>
+								<el-option
+									:label="t('module.subject.type.real')"
+									value="REAL"
+								/>
+								<el-option
+									:label="t('module.subject.type.other')"
+									value="OTHER"
+								/>
 							</el-select>
 						</el-form-item>
 					</el-col>
@@ -205,9 +282,11 @@ onMounted(fetchSubjectByRouterQuery);
 			style="text-align: right"
 		>
 			<el-button plain @click="subjectSyncDialogVisible = true">
-				快速新增
+				{{ t('module.subject.text.button.rapid-addition') }}
 			</el-button>
-			<el-button plain @click="toSubjectPost"> 新建条目 </el-button>
+			<el-button plain @click="toSubjectPost">
+				{{ t('module.subject.text.button.new-subject') }}
+			</el-button>
 		</el-col>
 	</el-row>
 
@@ -226,6 +305,7 @@ onMounted(fetchSubjectByRouterQuery);
 				:name="subject.name"
 				:name-cn="subject.name_cn"
 				:cover="subject.cover"
+				:percentage="episodeAttsPercentage(subject)"
 			/>
 		</el-col>
 	</el-row>

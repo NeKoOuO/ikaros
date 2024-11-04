@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import {
-	Subject,
-	SubjectRelation,
-	SubjectRelationRelationTypeEnum,
-} from '@runikaros/api-client';
-import { computed, ref } from 'vue';
-import { ElDrawer, ElTable, ElTableColumn } from 'element-plus';
-import { useSubjectStore } from '@/stores/subject';
+import {Subject, SubjectRelation} from '@runikaros/api-client';
+import {computed, ref} from 'vue';
+import {ElDrawer, ElTable, ElTableColumn} from 'element-plus';
+import {useSubjectStore} from '@/stores/subject';
+import {useI18n} from 'vue-i18n';
 
 const subjectStore = useSubjectStore();
+const { t } = useI18n();
 
 const props = withDefaults(
 	defineProps<{
@@ -47,8 +45,10 @@ const handleClose = () => {
 const selectionSubjectMap = new Map<string, number[]>();
 const selectionSubjectReactions = ref<SubjectRelation[]>([]);
 const handleSelectionChange = (selection) => {
-	// console.log('selection', selection);
+	// console.debug('selection', selection);
+	// console.debug('props.relationSubjects', props.relationSubjects);
 	selectionSubjectMap.clear();
+	selectionSubjectReactions.value = [];
 	selection.forEach((sub) => {
 		let ids: number[] = selectionSubjectMap.get(sub.type) as number[];
 		if (ids) {
@@ -58,18 +58,17 @@ const handleSelectionChange = (selection) => {
 			ids.push(sub.id);
 			selectionSubjectMap.set(sub.type, ids);
 		}
+		var subjectRelation = props.relationSubjects.find((rel) => {
+			var result = false;
+			rel.relation_subjects.forEach((relId) => {
+				if (relId === sub.id) result = true;
+			});
+			return result;
+		}) as SubjectRelation;
+		// console.debug('subjectRelation', subjectRelation);
+		selectionSubjectReactions.value.push(subjectRelation);
 	});
-	// console.log('selectionSubjectIdSet', selectionSubjectIdSet);
-	selectionSubjectReactions.value = [];
-	selectionSubjectMap.forEach((ids, type) => {
-		let subRel: SubjectRelation = {
-			subject: props.masterSubjectId,
-			relation_type: type as SubjectRelationRelationTypeEnum,
-			relation_subjects: new Set(ids),
-		};
-		selectionSubjectReactions.value.push(subRel);
-	});
-	// console.log('selectionSubjectReactions', selectionSubjectReactions);
+	// console.debug('selectionSubjectReactions', selectionSubjectReactions);
 };
 
 const subjectIdMapCache = new Map<number, Subject>();
@@ -95,7 +94,7 @@ const onOpen = async () => {
 <template>
 	<el-drawer
 		v-model="drawerVisible"
-		title="条目选择"
+		:title="t('module.subject.relaction.drawer.delete.title')"
 		direction="rtl"
 		:before-close="handleClose"
 		size="45%"
@@ -107,12 +106,25 @@ const onOpen = async () => {
 			@selection-change="handleSelectionChange"
 		>
 			<el-table-column type="selection" width="50" show-overflow-tooltip />
-			<el-table-column prop="id" label="ID" width="100" show-overflow-tooltip />
-			<el-table-column prop="name" label="名称" show-overflow-tooltip />
-			<el-table-column prop="name_cn" label="中文名称" show-overflow-tooltip />
+			<el-table-column
+				prop="id"
+				:label="t('module.subject.relaction.drawer.delete.table.label.id')"
+				width="100"
+				show-overflow-tooltip
+			/>
+			<el-table-column
+				prop="name"
+				:label="t('module.subject.relaction.drawer.delete.table.label.name')"
+				show-overflow-tooltip
+			/>
+			<el-table-column
+				prop="name_cn"
+				:label="t('module.subject.relaction.drawer.delete.table.label.name_cn')"
+				show-overflow-tooltip
+			/>
 			<el-table-column
 				prop="type"
-				label="类型"
+				:label="t('module.subject.relaction.drawer.delete.table.label.type')"
 				width="100"
 				show-overflow-tooltip
 			/>

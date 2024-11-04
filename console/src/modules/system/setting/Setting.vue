@@ -1,19 +1,11 @@
 <script setup lang="ts">
-import { apiClient } from '@/utils/api-client';
-import { onMounted, reactive, ref } from 'vue';
-import {
-	ElMessage,
-	FormRules,
-	ElForm,
-	ElTabs,
-	ElTabPane,
-	ElFormItem,
-	ElInput,
-	ElButton,
-	ElSwitch,
-} from 'element-plus';
-import { useSettingStore } from '@/stores/setting';
-import { watch } from 'vue';
+import {apiClient} from '@/utils/api-client';
+import {onMounted, reactive, ref, watch} from 'vue';
+import {ElButton, ElForm, ElFormItem, ElInput, ElMessage, ElSwitch, ElTabPane, ElTabs, FormRules,} from 'element-plus';
+import {useSettingStore} from '@/stores/setting';
+import {useI18n} from 'vue-i18n';
+
+const { t } = useI18n();
 
 const setting = ref({
 	SITE_TITLE: '',
@@ -37,23 +29,56 @@ const setting = ref({
 
 const settingFormRules = reactive<FormRules>({
 	SITE_TITLE: [
-		{ required: true, message: '请输入有效的站点标题', trigger: 'blur' },
-		{ min: 3, max: 15, message: '长度应该在3到15个字符内', trigger: 'blur' },
+		{
+			required: true,
+			message: t('module.setting.message.form-rule.site-title.required'),
+			trigger: 'blur',
+		},
+		{
+			min: 3,
+			max: 15,
+			message: t('module.setting.message.form-rule.site-title.length'),
+			trigger: 'blur',
+		},
 	],
 	MAIL_SMTP_HOST: [
-		{ required: true, message: '请输入服务器地址', trigger: 'blur' },
+		{
+			required: true,
+			message: t('module.setting.message.form-rule.mail-smtp-host.required'),
+			trigger: 'blur',
+		},
 	],
 	MAIL_SMTP_PORT: [
-		{ required: true, message: '请输入邮件服务器端口', trigger: 'blur' },
+		{
+			required: true,
+			message: t('module.setting.message.form-rule.mail-smtp-port.required'),
+			trigger: 'blur',
+		},
 	],
 	MAIL_SMTP_ACCOUNT: [
-		{ required: true, message: '请输入邮件服务用户名', trigger: 'blur' },
+		{
+			required: true,
+			message: t('module.setting.message.form-rule.mail-smtp-account.required'),
+			trigger: 'blur',
+		},
 	],
 	MAIL_SMTP_PASSWORD: [
-		{ required: true, message: '请输入邮件服务密码', trigger: 'blur' },
+		{
+			required: true,
+			message: t(
+				'module.setting.message.form-rule.mail-smtp-password.required'
+			),
+			trigger: 'blur',
+		},
 	],
 	MAIL_RECEIVE_ADDRESS: [
-		{ required: true, message: '请输入收件方邮件地址', trigger: 'blur' },
+		{
+			required: true,
+			message: t(
+				'module.setting.message.form-rule.mail-receive-address.required'
+			),
+			trigger: 'blur',
+		},
 	],
 });
 
@@ -68,9 +93,11 @@ const getSettingFromServer = async () => {
 	setting.value = data;
 };
 
+const settingSaveBtnLoading = ref(false);
 const settingStore = useSettingStore();
 // eslint-disable-next-line no-unused-vars
 const updateSetting = async () => {
+	settingSaveBtnLoading.value = true;
 	await apiClient.configmap
 		.updateConfigmapMeta({
 			name: settingConfigMapName,
@@ -78,18 +105,12 @@ const updateSetting = async () => {
 			body: JSON.stringify(setting.value),
 		})
 		.then(async () => {
-			ElMessage.success('更新成功');
+			ElMessage.success(t('module.setting.message.operate.update'));
 			await settingStore.fetchSystemSetting();
+		})
+		.finally(() => {
+			settingSaveBtnLoading.value = false;
 		});
-};
-
-// eslint-disable-next-line no-unused-vars
-const onDisableClick = () => {
-	ElMessage({
-		showClose: true,
-		message: '此功能尚未实现',
-		type: 'warning',
-	});
 };
 
 const mailEnable = ref(false);
@@ -100,6 +121,20 @@ watch(setting, () => {
 watch(mailEnable, () => {
 	setting.value.MAIL_ENABLE = mailEnable.value ? 'true' : 'false';
 });
+
+const testMailBtnLoading = ref(false);
+const testMailConfig = async () => {
+	if (
+		!mailEnable.value ||
+		setting.value.MAIL_RECEIVE_ADDRESS === '' ||
+		setting.value.MAIL_SMTP_PASSWORD === ''
+	)
+		return;
+	testMailBtnLoading.value = true;
+	await apiClient.notify.testMailSend();
+	testMailBtnLoading.value = false;
+	ElMessage.success('Email has been sent.');
+};
 
 onMounted(getSettingFromServer);
 </script>
@@ -113,71 +148,21 @@ onMounted(getSettingFromServer);
 		:rules="settingFormRules"
 	>
 		<el-tabs>
-			<!-- <el-tab-pane label="基础设置">
-				<el-form-item label="站点标题" prop="SITE_TITLE">
-					<el-input
-						v-model="setting.SITE_TITLE"
-						placeholder="请输入站点标题"
-						style="max-width: 600px"
-						clearable
-					/>
-				</el-form-item>
-
-				<el-form-item label="站点副标题">
-					<el-input
-						v-model="setting.SITE_SUBHEAD"
-						placeholder="请输入站点副标题"
-						style="max-width: 600px"
-						clearable
-					/>
-				</el-form-item>
-
-				<el-form-item label="LOGO">
-					<el-input
-						v-model="setting.LOGO"
-						disabled
-						style="max-width: 600px"
-						clearable
-					>
-						<template #prepend>
-							<el-button disabled @click="onDisableClick">
-								<el-icon><FolderOpened /></el-icon>
-							</el-button>
-						</template>
-					</el-input>
-				</el-form-item>
-
-				<el-form-item label="FAVICON">
-					<el-input
-						v-model="setting.FAVICON"
-						style="max-width: 600px"
-						clearable
-						disabled
-					>
-						<template #prepend>
-							<el-button disabled @click="onDisableClick">
-								<el-icon><FolderOpened /></el-icon>
-							</el-button>
-						</template>
-					</el-input>
-				</el-form-item>
-
-				<el-form-item>
-					<el-button type="primary" @click="updateSetting">保存</el-button>
-				</el-form-item>
-			</el-tab-pane> -->
-			<el-tab-pane label="邮件配置">
-				<el-form-item label="启用邮件">
+			<el-tab-pane :label="t('module.setting.label.tab.pane.mail-config')">
+				<el-form-item :label="t('module.setting.label.tab.item.enable-mail')">
 					<el-switch
 						v-model="mailEnable"
 						inline-prompt
 						size="large"
-						active-text="启用"
-						inactive-text="禁用"
+						:active-text="t('module.setting.label.tab.item.switch.active')"
+						:inactive-text="t('module.setting.label.tab.item.switch.inactive')"
 					/>
 				</el-form-item>
 				<span v-if="mailEnable">
-					<el-form-item label="协议" prop="MAIL_PROTOCOL">
+					<el-form-item
+						:label="t('module.setting.label.tab.item.mail.protocol')"
+						prop="MAIL_PROTOCOL"
+					>
 						<el-input
 							v-model="setting.MAIL_PROTOCOL"
 							style="max-width: 600px"
@@ -185,81 +170,125 @@ onMounted(getSettingFromServer);
 							disabled
 						/>
 					</el-form-item>
-					<el-form-item label="服务器地址" prop="MAIL_SMTP_HOST">
+					<el-form-item
+						:label="t('module.setting.label.tab.item.mail.smtp.host')"
+						prop="MAIL_SMTP_HOST"
+					>
 						<el-input
 							v-model="setting.MAIL_SMTP_HOST"
-							placeholder="请输入邮件服务器地址"
-							style="max-width: 600px"
-							clearable
-						/>
-					</el-form-item>
-					<el-form-item label="服务器端口" prop="MAIL_SMTP_PORT">
-						<el-input
-							v-model="setting.MAIL_SMTP_PORT"
-							placeholder="请输入邮件服务器端口"
-							style="max-width: 600px"
-							clearable
-						/>
-					</el-form-item>
-					<el-form-item label="邮件服务用户名" prop="MAIL_SMTP_ACCOUNT">
-						<el-input
-							v-model="setting.MAIL_SMTP_ACCOUNT"
-							placeholder="请输入邮件服务用户名"
-							style="max-width: 600px"
-							clearable
-						/>
-					</el-form-item>
-					<el-form-item label="邮件服务密码" prop="MAIL_SMTP_PASSWORD">
-						<el-input
-							v-model="setting.MAIL_SMTP_PASSWORD"
-							placeholder="请输入邮件服务密码"
+							:placeholder="t('module.setting.placeholder.smtp.host')"
 							style="max-width: 600px"
 							clearable
 						/>
 					</el-form-item>
 					<el-form-item
-						label="邮件服务用户名别名"
-						prop="MAIL_SMTP_ACCOUNT_ALIAS"
+						:label="t('module.setting.label.tab.item.mail.smtp.port')"
+						prop="MAIL_SMTP_PORT"
 					>
 						<el-input
-							v-model="setting.MAIL_SMTP_ACCOUNT_ALIAS"
-							placeholder="请输入邮件服务用户名别名"
+							v-model="setting.MAIL_SMTP_PORT"
+							:placeholder="t('module.setting.placeholder.smtp.port')"
 							style="max-width: 600px"
 							clearable
 						/>
 					</el-form-item>
-					<el-form-item label="收件方邮件地址" prop="MAIL_RECEIVE_ADDRESS">
+					<el-form-item
+						:label="t('module.setting.label.tab.item.mail.smtp.account')"
+						prop="MAIL_SMTP_ACCOUNT"
+					>
+						<el-input
+							v-model="setting.MAIL_SMTP_ACCOUNT"
+							:placeholder="t('module.setting.placeholder.smtp.account')"
+							style="max-width: 600px"
+							clearable
+						/>
+					</el-form-item>
+					<el-form-item
+						:label="t('module.setting.label.tab.item.mail.smtp.password')"
+						prop="MAIL_SMTP_PASSWORD"
+					>
+						<el-input
+							v-model="setting.MAIL_SMTP_PASSWORD"
+							:placeholder="t('module.setting.placeholder.smtp.password')"
+							style="max-width: 600px"
+							clearable
+						/>
+					</el-form-item>
+					<el-form-item
+						:label="t('module.setting.label.tab.item.mail.smtp.alias')"
+						prop="MAIL_SMTP_ACCOUNT_ALIAS"
+					>
+						<el-input
+							v-model="setting.MAIL_SMTP_ACCOUNT_ALIAS"
+							:placeholder="t('module.setting.placeholder.smtp.alias')"
+							style="max-width: 600px"
+							clearable
+						/>
+					</el-form-item>
+					<el-form-item
+						:label="
+							t('module.setting.label.tab.item.mail.smtp.receive-address')
+						"
+						prop="MAIL_RECEIVE_ADDRESS"
+					>
 						<el-input
 							v-model="setting.MAIL_RECEIVE_ADDRESS"
-							placeholder="请输入收件方邮件地址"
+							:placeholder="
+								t('module.setting.placeholder.smtp.receive-address')
+							"
 							style="max-width: 600px"
 							clearable
 						/>
 					</el-form-item>
 				</span>
 				<el-form-item>
-					<el-button type="primary" @click="updateSetting">保存</el-button>
+					<el-button
+						type="primary"
+						:loading="settingSaveBtnLoading"
+						@click="updateSetting"
+					>
+						{{ t('module.setting.button.save') }}
+					</el-button>
+
+					<el-button
+						v-if="mailEnable"
+						:loading="testMailBtnLoading"
+						type="primary"
+						@click="testMailConfig"
+					>
+						Test
+					</el-button>
 				</el-form-item>
 			</el-tab-pane>
-			<!-- <el-tab-pane label="远端配置">
-				<el-alert
-					title="此功能尚不稳定，不建议开启。"
-					type="warning"
-					show-icon
-				/>
-				<el-form-item label="启用远端">
-					<el-switch
-						v-model="setting.REMOTE_ENABLE"
-						inline-prompt
-						size="large"
-						active-text="启用"
-						inactive-text="禁用"
+			<el-tab-pane label="代码注入">
+				<el-form-item label="全局Header">
+					<el-input
+						v-model="setting.GLOBAL_HEADER"
+						style="max-width: 600px"
+						:autosize="{ minRows: 10 }"
+						maxlength="2000"
+						rows="10"
+						show-word-limit
+						type="textarea"
 					/>
 				</el-form-item>
+				<el-form-item label="全局Footer">
+					<el-input
+						v-model="setting.GLOBAL_FOOTER"
+						style="max-width: 600px"
+						:autosize="{ minRows: 10 }"
+						maxlength="2000"
+						rows="10"
+						show-word-limit
+						type="textarea"
+					/>
+				</el-form-item>
+
 				<el-form-item>
 					<el-button type="primary" @click="updateSetting">保存</el-button>
 				</el-form-item>
 			</el-tab-pane>
+			<!-- 
 			<el-tab-pane label="用户设置">
 				<el-form-item label="开放注册">
 					<el-switch
@@ -276,36 +305,7 @@ onMounted(getSettingFromServer);
 					<el-button type="primary" @click="updateSetting">保存</el-button>
 				</el-form-item>
 			</el-tab-pane>
-			<el-tab-pane label="代码注入">
-				<el-form-item label="全局Header">
-					<el-input
-						v-model="setting.GLOBAL_HEADER"
-						style="max-width: 600px"
-						:autosize="{ minRows: 10 }"
-						maxlength="2000"
-						rows="10"
-						show-word-limit
-						type="textarea"
-						disabled
-					/>
-				</el-form-item>
-				<el-form-item label="全局Footer">
-					<el-input
-						v-model="setting.GLOBAL_FOOTER"
-						style="max-width: 600px"
-						:autosize="{ minRows: 10 }"
-						maxlength="2000"
-						rows="10"
-						show-word-limit
-						type="textarea"
-						disabled
-					/>
-				</el-form-item>
-
-				<el-form-item>
-					<el-button type="primary" @click="updateSetting">保存</el-button>
-				</el-form-item>
-			</el-tab-pane> -->
+			 -->
 		</el-tabs>
 	</el-form>
 </template>

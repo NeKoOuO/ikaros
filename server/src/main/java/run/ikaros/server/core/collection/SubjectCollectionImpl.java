@@ -1,6 +1,6 @@
 package run.ikaros.server.core.collection;
 
-import static run.ikaros.server.infra.utils.ReactiveBeanUtils.copyProperties;
+import static run.ikaros.api.infra.utils.ReactiveBeanUtils.copyProperties;
 
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -181,8 +181,6 @@ public class SubjectCollectionImpl implements SubjectCollectionService {
         Assert.isTrue(subjectId >= 0, "'subjectId' must >= 0");
         return checkUserIdExists(userId)
             .then(subjectRepository.findById(subjectId))
-            .switchIfEmpty(Mono.error(
-                new SubjectNotFoundException("Subject not found for id: " + subjectId)))
             .flatMap(subjectEntity -> copyProperties(subjectEntity, new SubjectCollection()))
             .flatMap(subjectCollection ->
                 subjectCollectionRepository.findByUserIdAndSubjectId(userId, subjectId)

@@ -1,18 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import {
-	ElDialog,
-	ElForm,
-	ElFormItem,
-	ElButton,
-	ElInput,
-	ElSelect,
-	ElOption,
-	ElMessage,
-} from 'element-plus';
-import { Tickets } from '@element-plus/icons-vue';
+import {computed, ref} from 'vue';
+import {ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElMessage, ElOption, ElSelect,} from 'element-plus';
+import {Tickets} from '@element-plus/icons-vue';
 import SubjectSelectDrawer from './SubjectSelectDrawer.vue';
-import { apiClient } from '@/utils/api-client';
+import {apiClient} from '@/utils/api-client';
+import {useI18n} from 'vue-i18n';
+import {subjectRelationTypes} from '@/modules/common/constants';
+
+const { t } = useI18n();
 
 const props = withDefaults(
 	defineProps<{
@@ -60,7 +55,7 @@ const reqCreateRelactionBtnLoading = ref(false);
 const reqCreateRelaction = async () => {
 	if (slaveSubjectIdsStr.value === '[]') {
 		ElMessage.warning(
-			'提交取消，请检查是否有必要项缺失，必要项：【副条目】【类型】。'
+			t('module.subject.relaction.dialog.post.message.validate-fail')
 		);
 		return;
 	}
@@ -72,7 +67,9 @@ const reqCreateRelaction = async () => {
 			relation_type: selectSubjectReactionType.value,
 		},
 	});
-	ElMessage.success('添加条目关系成功');
+	ElMessage.success(
+		t('module.subject.relaction.dialog.post.message.add-success')
+	);
 	reqCreateRelactionBtnLoading.value = false;
 	onClose();
 };
@@ -81,23 +78,30 @@ const reqCreateRelaction = async () => {
 <template>
 	<subject-select-drawer
 		v-model:visible="subjectSelectDrawerVisible"
+		:filter="[props.masterSubjectId as number]"
 		@selections-change="onSelectionsChange"
 	/>
 	<el-dialog
 		v-model="dialogVisible"
 		style="width: 40%"
-		title="条目关系新增"
+		:title="t('module.subject.relaction.dialog.post.title')"
 		@close="onClose"
 	>
 		<el-form label-width="100px" style="max-width: 460px">
-			<el-form-item label="主条目">
+			<el-form-item
+				:label="t('module.subject.relaction.dialog.post.label.master-subject')"
+			>
 				<el-input disabled :value="props.masterSubjectId" />
 			</el-form-item>
-			<el-form-item label="副条目">
+			<el-form-item
+				:label="t('module.subject.relaction.dialog.post.label.slave-subject')"
+			>
 				<el-input
 					v-model="slaveSubjectIdsStr"
 					disabled
-					placeholder="副条目ID，英文逗号隔开"
+					:placeholder="
+						t('module.subject.relaction.dialog.post.placeholder.slave-subject')
+					"
 				>
 					<template #append>
 						<el-button
@@ -107,31 +111,30 @@ const reqCreateRelaction = async () => {
 					</template>
 				</el-input>
 			</el-form-item>
-			<el-form-item label="关系类型">
+			<el-form-item
+				:label="t('module.subject.relaction.dialog.post.label.type')"
+			>
 				<el-select v-model="selectSubjectReactionType" clearable>
-					<el-option label="后传" value="AFTER" />
-					<el-option label="前传" value="BEFORE" />
-					<el-option label="相同世界观" value="SAME_WORLDVIEW" />
-					<el-option label="OST" value="ORIGINAL_SOUND_TRACK" />
-					<el-option label="动漫" value="ANIME" />
-					<el-option label="漫画" value="COMIC" />
-					<el-option label="游戏" value="GAME" />
-					<el-option label="音声" value="MUSIC" />
-					<el-option label="小说" value="NOVEL" />
-					<el-option label="三次元" value="REAL" />
-					<el-option label="其它" value="OTHER" />
+					<el-option
+						v-for="type in subjectRelationTypes"
+						:key="type"
+						:label="t('module.subject.relaction.type.' + type)"
+						:value="type"
+					/>
 				</el-select>
 			</el-form-item>
 		</el-form>
 		<template #footer>
 			<span>
-				<el-button @click="dialogVisible = false">取消</el-button>
+				<el-button @click="dialogVisible = false">
+					{{ t('module.subject.relaction.dialog.post.button.cancel') }}
+				</el-button>
 				<el-button
 					type="primary"
 					:loading="reqCreateRelactionBtnLoading"
 					@click="reqCreateRelaction"
 				>
-					关联
+					{{ t('module.subject.relaction.dialog.post.button.confirm') }}
 				</el-button>
 			</span>
 		</template>

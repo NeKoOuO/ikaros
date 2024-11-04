@@ -111,7 +111,7 @@ export const V1alpha1SubjectRelationApiAxiosParamCreator = function (
     /**
      *
      * @param {number} subjectId Subject id
-     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK'} relationType Subject relation type
+     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK' | 'ORIGINAL_VIDEO_ANIMATION' | 'ORIGINAL_ANIMATION_DISC'} relationType Subject relation type
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -128,7 +128,9 @@ export const V1alpha1SubjectRelationApiAxiosParamCreator = function (
         | "BEFORE"
         | "AFTER"
         | "SAME_WORLDVIEW"
-        | "ORIGINAL_SOUND_TRACK",
+        | "ORIGINAL_SOUND_TRACK"
+        | "ORIGINAL_VIDEO_ANIMATION"
+        | "ORIGINAL_ANIMATION_DISC",
       options: AxiosRequestConfig = {}
     ): Promise<RequestArgs> => {
       // verify required parameter 'subjectId' is not null or undefined
@@ -244,7 +246,7 @@ export const V1alpha1SubjectRelationApiAxiosParamCreator = function (
     /**
      * Remove subject relation
      * @param {number} subjectId Subject id
-     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK'} relationType Subject relation type code
+     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK' | 'ORIGINAL_VIDEO_ANIMATION' | 'ORIGINAL_ANIMATION_DISC'} relationType Subject relation type code
      * @param {string} relationSubjects Relation subjects
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -262,7 +264,9 @@ export const V1alpha1SubjectRelationApiAxiosParamCreator = function (
         | "BEFORE"
         | "AFTER"
         | "SAME_WORLDVIEW"
-        | "ORIGINAL_SOUND_TRACK",
+        | "ORIGINAL_SOUND_TRACK"
+        | "ORIGINAL_VIDEO_ANIMATION"
+        | "ORIGINAL_ANIMATION_DISC",
       relationSubjects: string,
       options: AxiosRequestConfig = {}
     ): Promise<RequestArgs> => {
@@ -276,7 +280,11 @@ export const V1alpha1SubjectRelationApiAxiosParamCreator = function (
         "relationSubjects",
         relationSubjects
       );
-      const localVarPath = `/api/v1alpha1/subject/relation`;
+      const localVarPath =
+        `/api/v1alpha1/subject/relation/subjectId/{subjectId}`.replace(
+          `{${"subjectId"}}`,
+          encodeURIComponent(String(subjectId))
+        );
       // use dummy base URL string because the URL constructor only accepts absolute URLs.
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -299,10 +307,6 @@ export const V1alpha1SubjectRelationApiAxiosParamCreator = function (
       // authentication BearerAuth required
       // http bearer authentication required
       await setBearerAuthToObject(localVarHeaderParameter, configuration);
-
-      if (subjectId !== undefined) {
-        localVarQueryParameter["subject_id"] = subjectId;
-      }
 
       if (relationType !== undefined) {
         localVarQueryParameter["relation_type"] = relationType;
@@ -366,7 +370,7 @@ export const V1alpha1SubjectRelationApiFp = function (
     /**
      *
      * @param {number} subjectId Subject id
-     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK'} relationType Subject relation type
+     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK' | 'ORIGINAL_VIDEO_ANIMATION' | 'ORIGINAL_ANIMATION_DISC'} relationType Subject relation type
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -383,7 +387,9 @@ export const V1alpha1SubjectRelationApiFp = function (
         | "BEFORE"
         | "AFTER"
         | "SAME_WORLDVIEW"
-        | "ORIGINAL_SOUND_TRACK",
+        | "ORIGINAL_SOUND_TRACK"
+        | "ORIGINAL_VIDEO_ANIMATION"
+        | "ORIGINAL_ANIMATION_DISC",
       options?: AxiosRequestConfig
     ): Promise<
       (axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>
@@ -411,7 +417,10 @@ export const V1alpha1SubjectRelationApiFp = function (
       subjectId: number,
       options?: AxiosRequestConfig
     ): Promise<
-      (axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>
+      (
+        axios?: AxiosInstance,
+        basePath?: string
+      ) => AxiosPromise<Array<SubjectRelation>>
     > {
       const localVarAxiosArgs =
         await localVarAxiosParamCreator.getSubjectRelationsById(
@@ -428,7 +437,7 @@ export const V1alpha1SubjectRelationApiFp = function (
     /**
      * Remove subject relation
      * @param {number} subjectId Subject id
-     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK'} relationType Subject relation type code
+     * @param {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK' | 'ORIGINAL_VIDEO_ANIMATION' | 'ORIGINAL_ANIMATION_DISC'} relationType Subject relation type code
      * @param {string} relationSubjects Relation subjects
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -446,7 +455,9 @@ export const V1alpha1SubjectRelationApiFp = function (
         | "BEFORE"
         | "AFTER"
         | "SAME_WORLDVIEW"
-        | "ORIGINAL_SOUND_TRACK",
+        | "ORIGINAL_SOUND_TRACK"
+        | "ORIGINAL_VIDEO_ANIMATION"
+        | "ORIGINAL_ANIMATION_DISC",
       relationSubjects: string,
       options?: AxiosRequestConfig
     ): Promise<
@@ -521,7 +532,7 @@ export const V1alpha1SubjectRelationApiFactory = function (
     getSubjectRelationsById(
       requestParameters: V1alpha1SubjectRelationApiGetSubjectRelationsByIdRequest,
       options?: AxiosRequestConfig
-    ): AxiosPromise<void> {
+    ): AxiosPromise<Array<SubjectRelation>> {
       return localVarFp
         .getSubjectRelationsById(requestParameters.subjectId, options)
         .then((request) => request(axios, basePath));
@@ -577,7 +588,7 @@ export interface V1alpha1SubjectRelationApiGetSubjectRelationByIdAndTypeRequest 
 
   /**
    * Subject relation type
-   * @type {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK'}
+   * @type {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK' | 'ORIGINAL_VIDEO_ANIMATION' | 'ORIGINAL_ANIMATION_DISC'}
    * @memberof V1alpha1SubjectRelationApiGetSubjectRelationByIdAndType
    */
   readonly relationType:
@@ -591,7 +602,9 @@ export interface V1alpha1SubjectRelationApiGetSubjectRelationByIdAndTypeRequest 
     | "BEFORE"
     | "AFTER"
     | "SAME_WORLDVIEW"
-    | "ORIGINAL_SOUND_TRACK";
+    | "ORIGINAL_SOUND_TRACK"
+    | "ORIGINAL_VIDEO_ANIMATION"
+    | "ORIGINAL_ANIMATION_DISC";
 }
 
 /**
@@ -623,7 +636,7 @@ export interface V1alpha1SubjectRelationApiRemoveSubjectRelationRequest {
 
   /**
    * Subject relation type code
-   * @type {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK'}
+   * @type {'OTHER' | 'ANIME' | 'COMIC' | 'GAME' | 'MUSIC' | 'NOVEL' | 'REAL' | 'BEFORE' | 'AFTER' | 'SAME_WORLDVIEW' | 'ORIGINAL_SOUND_TRACK' | 'ORIGINAL_VIDEO_ANIMATION' | 'ORIGINAL_ANIMATION_DISC'}
    * @memberof V1alpha1SubjectRelationApiRemoveSubjectRelation
    */
   readonly relationType:
@@ -637,7 +650,9 @@ export interface V1alpha1SubjectRelationApiRemoveSubjectRelationRequest {
     | "BEFORE"
     | "AFTER"
     | "SAME_WORLDVIEW"
-    | "ORIGINAL_SOUND_TRACK";
+    | "ORIGINAL_SOUND_TRACK"
+    | "ORIGINAL_VIDEO_ANIMATION"
+    | "ORIGINAL_ANIMATION_DISC";
 
   /**
    * Relation subjects

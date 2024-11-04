@@ -1,7 +1,11 @@
 ikaros:
   external-url: "http://${server.address:localhost}:${server.port}"
   work-dir: ${user.home}/.ikaros
-  show-theme: false
+  show-theme: true
+
+  security:
+    # 3 day for token expire
+    jwt-expiration-time: 259200000
 
   plugin:
     runtime-mode: deployment
@@ -28,10 +32,15 @@ spring:
     url: r2dbc:h2:file:///${ikaros.work-dir}/database/ikaros?MODE=MySQL&DB_CLOSE_ON_EXIT=FALSE
     username: admin
     password: 123456
-  sql:
-    init:
-      mode: always
-      platform: h2
+
+  flyway:
+    locations: classpath:db/h2/migration
+    baseline-version: 0.13.0_0000
+    enabled: true
+    encoding: UTF-8
+    sql-migration-separator: __
+    clean-disabled: true
+    url: jdbc:h2:file:${ikaros.work-dir}/database/ikaros
 
 springdoc:
   api-docs:

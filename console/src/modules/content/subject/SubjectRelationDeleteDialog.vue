@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import {
-	ElDialog,
-	ElForm,
-	ElFormItem,
-	ElButton,
-	ElInput,
-	ElMessage,
-	ElPopconfirm,
-} from 'element-plus';
-import { Tickets } from '@element-plus/icons-vue';
+import {computed, ref} from 'vue';
+import {ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElMessage, ElPopconfirm,} from 'element-plus';
+import {Tickets} from '@element-plus/icons-vue';
 import SubjectRelactionDeleteDrawer from './SubjectRelactionDeleteDrawer.vue';
-import { SubjectRelation } from '@runikaros/api-client';
-import { apiClient } from '@/utils/api-client';
-import { useSubjectStore } from '@/stores/subject';
+import {SubjectRelation} from '@runikaros/api-client';
+import {apiClient} from '@/utils/api-client';
+import {useSubjectStore} from '@/stores/subject';
+import {useI18n} from 'vue-i18n';
 
 const subjectStore = useSubjectStore();
+const { t } = useI18n();
 
 const props = withDefaults(
 	defineProps<{
@@ -55,7 +49,7 @@ const slaveSubjectTypesStr = ref('[]');
 const slaveSubjectIdsStr = ref('[]');
 const subjectRelations = ref<SubjectRelation[]>([]);
 const onSelectionsChange = (subjectRels) => {
-	// console.log('receive subjectRelations', subjectRelations);
+	console.log('receive subjectRelations', subjectRelations);
 	subjectRelations.value = subjectRels;
 	let types = new Set<string>();
 	let ids = new Set<number>();
@@ -75,13 +69,11 @@ const reqRemoveRelactionBtnLoading = ref(false);
 const reqRemoveRelaction = async () => {
 	if (!subjectRelations.value || subjectRelations.value.length === 0) {
 		ElMessage.warning(
-			'提交取消，请检查是否有必要项缺失，必要项：【副条目】【类型】。'
+			t('module.subject.relaction.dialog.delete.message.validate-fail')
 		);
 		return;
 	}
 	reqRemoveRelactionBtnLoading.value = true;
-	// await apiClient.subjectRelation.removeSubjectRelation({
-	// });
 	await subjectRelations.value.forEach(async (subRel) => {
 		const subIdSet = subRel.relation_subjects;
 		let ids: number[] = [];
@@ -93,7 +85,9 @@ const reqRemoveRelaction = async () => {
 		});
 		subjectStore.clearSubjectCacheById(subRel.subject);
 	});
-	ElMessage.success('移除条目关系成功');
+	ElMessage.success(
+		t('module.subject.relaction.dialog.delete.message.remove-success')
+	);
 	reqRemoveRelactionBtnLoading.value = false;
 	onClose();
 };
@@ -109,15 +103,21 @@ const reqRemoveRelaction = async () => {
 	<el-dialog
 		v-model="dialogVisible"
 		style="width: 40%"
-		title="条目关系新增"
+		:title="t('module.subject.relaction.dialog.delete.title')"
 		@close="onClose"
 	>
 		<el-form label-width="100px" style="max-width: 460px">
-			<el-form-item label="主条目">
+			<el-form-item
+				:label="
+					t('module.subject.relaction.dialog.delete.label.master-subject')
+				"
+			>
 				<el-input disabled :value="props.masterSubjectId" />
 			</el-form-item>
-			<el-form-item label="副条目">
-				<el-input v-model="slaveSubjectIdsStr" disabled placeholder="副条目ID">
+			<el-form-item
+				:label="t('module.subject.relaction.dialog.delete.label.slave-subject')"
+			>
+				<el-input v-model="slaveSubjectIdsStr" disabled>
 					<template #append>
 						<el-button
 							:icon="Tickets"
@@ -127,21 +127,24 @@ const reqRemoveRelaction = async () => {
 				</el-input>
 			</el-form-item>
 
-			<el-form-item label="关系类型">
-				<el-input
-					v-model="slaveSubjectTypesStr"
-					disabled
-					placeholder="副条目类型"
-				/>
+			<el-form-item
+				:label="t('module.subject.relaction.dialog.delete.label.type')"
+			>
+				<el-input v-model="slaveSubjectTypesStr" disabled />
 			</el-form-item>
 		</el-form>
 		<template #footer>
 			<span>
-				<el-button @click="dialogVisible = false">取消</el-button>
-				<el-popconfirm title="确定移除关联吗？" @confirm="reqRemoveRelaction">
+				<el-button @click="dialogVisible = false">
+					{{ t('module.subject.relaction.dialog.delete.button.cancel') }}
+				</el-button>
+				<el-popconfirm
+					:title="t('module.subject.relaction.dialog.delete.popconfirm.title')"
+					@confirm="reqRemoveRelaction"
+				>
 					<template #reference>
 						<el-button type="primary" :loading="reqRemoveRelactionBtnLoading">
-							移除关联
+							{{ t('module.subject.relaction.dialog.delete.button.confirm') }}
 						</el-button>
 					</template>
 				</el-popconfirm>

@@ -52,6 +52,13 @@ public class AttachmentReferenceEndpoint implements CoreEndpoint {
                     .requestBody(Builder.requestBodyBuilder()
                         .implementation(AttachmentReference.class)))
 
+            .DELETE("/attachment/references", this::removeAllByTypeAndReferenceId,
+                builder -> builder.operationId("RemoveAllByTypeAndReferenceId")
+                    .tag(tag).description("Remove references by type and referenceId")
+                    .requestBody(Builder.requestBodyBuilder()
+                        .implementation(AttachmentReference.class)))
+
+
             .GET("/attachment/references", this::findAllByTypeAndAttachmentId,
                 builder -> builder.tag(tag)
                     .operationId("FindAllByTypeAndAttachmentId")
@@ -108,6 +115,13 @@ public class AttachmentReferenceEndpoint implements CoreEndpoint {
             .then(ServerResponse.ok().bodyValue("Delete success."));
     }
 
+    private Mono<ServerResponse> removeAllByTypeAndReferenceId(ServerRequest request) {
+        return request.bodyToMono(AttachmentReference.class)
+            .flatMap(attachmentReference -> service.removeAllByTypeAndReferenceId(
+                attachmentReference.getType(), attachmentReference.getReferenceId()))
+            .then(ServerResponse.ok().bodyValue("Delete success."));
+    }
+
     private Mono<ServerResponse> findAllByTypeAndAttachmentId(ServerRequest request) {
         Optional<String> typeOp = request.queryParam("type");
         if (typeOp.isEmpty()) {
@@ -133,7 +147,8 @@ public class AttachmentReferenceEndpoint implements CoreEndpoint {
                 batchMatchingSubjectEpisodesAttachment ->
                     service.matchingAttachmentsAndSubjectEpisodes(
                         batchMatchingSubjectEpisodesAttachment.getSubjectId(),
-                        batchMatchingSubjectEpisodesAttachment.getAttachmentIds()))
+                        batchMatchingSubjectEpisodesAttachment.getAttachmentIds(),
+                        batchMatchingSubjectEpisodesAttachment.getEpisodeGroup()))
             .then(ServerResponse.ok().build());
     }
 
